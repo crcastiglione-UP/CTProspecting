@@ -1073,7 +1073,7 @@ function renderDBList() {
       <div class="db-info">
         <div class="db-name"><span style="color:var(--accent);margin-right:8px">${db.s}</span>${db.n}</div>        <div class="db-url"><a href="${db.url}" target="_blank">${db.url}</a></div>
       </div>
-      ${cnt>0?`<span style="font-size:14px;color:var(--green);white-space:nowrap;flex-shrink:0">${cnt} imported</span>`:''}
+      ${cnt>0 && scrSt[db.s]?.status==='done' ?`<span style="font-size:14px;color:var(--green);white-space:nowrap;flex-shrink:0">${cnt} scraped</span>`:''}
       <div style="flex-shrink:0">${btnHtml}</div>
     </div>`
   }).join('')
