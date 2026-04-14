@@ -9,28 +9,28 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0a0e17;--surface:#111827;--surface2:#1a2332;
-  --border:#1e3a5f;--border2:#2d4a6e;
-  --accent:#00c4a0;--text:#e2e8f0;--muted:#64748b;--muted2:#94a3b8;
-  --green:#22c55e;--blue:#3b82f6;--amber:#f59e0b;--red:#ef4444;--purple:#a855f7;
-  --green-bg:rgba(34,197,94,.12);--blue-bg:rgba(59,130,246,.12);
-  --amber-bg:rgba(245,158,11,.12);--red-bg:rgba(239,68,68,.12);--purple-bg:rgba(168,85,247,.12);
+  --bg:#f8fafc;--surface:#ffffff;--surface2:#f1f5f9;
+  --border:#e2e8f0;--border2:#cbd5e1;
+  --accent:#0d9488;--text:#0f172a;--muted:#64748b;--muted2:#475569;
+  --green:#16a34a;--blue:#2563eb;--amber:#d97706;--red:#dc2626;--purple:#7c3aed;
+  --green-bg:rgba(22,163,74,.1);--blue-bg:rgba(37,99,235,.1);
+  --amber-bg:rgba(217,119,6,.1);--red-bg:rgba(220,38,38,.1);--purple-bg:rgba(124,58,237,.1);
 }
 html,body{height:100%;font-family:'IBM Plex Mono',monospace;background:var(--bg);color:var(--text);font-size:15px}
 .app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
 
 /* Top bar */
-.topbar{background:#0d1117;border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;gap:14px;height:56px;flex-shrink:0}
+.topbar{background:#ffffff;border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;gap:14px;height:56px;flex-shrink:0}
 .logo{font-family:'Syne',sans-serif;font-size:19px;font-weight:800;letter-spacing:-.3px;white-space:nowrap}
 .logo em{color:var(--accent);font-style:normal}
 .topbar-mid{flex:1;display:flex;justify-content:center}
-.tab-nav{display:flex;gap:2px;background:var(--surface2);border-radius:6px;padding:3px}
+.tab-nav{display:flex;gap:2px;background:var(--surface2);border-radius:6px;padding:3px;border:1px solid var(--border)}
 .tab-btn{padding:6px 18px;border-radius:4px;border:none;background:none;color:var(--muted);font-family:inherit;font-size:14px;cursor:pointer;transition:all .15s;white-space:nowrap}
-.tab-btn.on{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.tab-btn.on{background:var(--surface);color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.1);font-weight:500}
 .topbar-right{display:flex;align-items:center;gap:8px}
 
 /* API key bar */
-.keybar{background:#0b1120;border-bottom:1px solid var(--border);padding:9px 20px;display:flex;align-items:center;gap:10px;font-size:14px;flex-shrink:0}
+.keybar{background:#f1f5f9;border-bottom:1px solid var(--border);padding:9px 20px;display:flex;align-items:center;gap:10px;font-size:14px;flex-shrink:0}
 .keybar label{color:var(--muted);white-space:nowrap;flex-shrink:0}
 .keybar input{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:4px;font-family:inherit;font-size:14px;width:340px;outline:none;letter-spacing:.03em}
 .keybar input:focus{border-color:var(--accent)}
@@ -59,19 +59,19 @@ html,body{height:100%;font-family:'IBM Plex Mono',monospace;background:var(--bg)
   padding:7px 11px;border-radius:4px;font-family:inherit;font-size:14px;outline:none
 }
 .filters input:focus,.filters select:focus{border-color:var(--accent)}
-.filters select option{background:#111827}
+.filters select option{background:#ffffff}
 .rc{font-size:13px;color:var(--muted)}
 
 /* Table */
 .tbl-wrap{border:1px solid var(--border);border-radius:6px;overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:14px}
-th{text-align:left;padding:9px 14px;background:var(--surface);color:var(--muted);font-weight:500;
+th{text-align:left;padding:9px 14px;background:#f8fafc;color:var(--muted);font-weight:500;
    font-size:11px;letter-spacing:.05em;text-transform:uppercase;border-bottom:1px solid var(--border);
    cursor:pointer;white-space:nowrap;user-select:none;position:sticky;top:0;z-index:1}
 th:hover{color:var(--text)}
-td{padding:9px 14px;border-bottom:1px solid rgba(30,58,95,.4);vertical-align:middle}
+td{padding:9px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
 tr:last-child td{border-bottom:none}
-tr:hover td{background:var(--surface)}
+tr:hover td{background:#f8fafc}
 
 /* Badges */
 .bg{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;white-space:nowrap}
@@ -95,10 +95,10 @@ tr:hover td{background:var(--surface)}
 .btn-primary:hover{filter:brightness(1.1)}
 .btn-outline{background:none;color:var(--text);border-color:var(--border)}
 .btn-outline:hover{border-color:var(--border2);background:var(--surface)}
-.btn-danger{background:none;color:var(--red);border-color:rgba(239,68,68,.3)}
-.btn-danger:hover{background:var(--red-bg)}
-.btn-scrape{background:none;color:var(--accent);border-color:rgba(0,196,160,.4);padding:6px 14px;font-size:14px}
-.btn-scrape:hover{background:rgba(0,196,160,.08)}
+.btn-danger{background:none;color:var(--red);border-color:rgba(220,38,38,.3)}
+.btn-danger:hover{background:rgba(220,38,38,.06)}
+.btn-scrape{background:none;color:var(--accent);border-color:rgba(13,148,136,.4);padding:6px 14px;font-size:14px}
+.btn-scrape:hover{background:rgba(13,148,136,.06)}
 .btn-scrape:disabled{opacity:.35;cursor:not-allowed}
 .btn-done{background:none;color:var(--muted2);border-color:var(--border);padding:6px 14px;font-size:14px}
 .btn-done:hover{border-color:var(--border2)}
@@ -124,8 +124,8 @@ tr:hover td{background:var(--surface)}
 .db-url a:hover{color:var(--accent)}
 
 /* Note boxes */
-.note{background:var(--surface);border:1px solid rgba(245,158,11,.3);border-radius:6px;padding:13px 16px;font-size:14px;color:var(--amber);line-height:1.6;margin-top:12px}
-.info{background:var(--surface);border-left:3px solid var(--accent);border-radius:0 6px 6px 0;padding:13px 16px;font-size:14px;color:var(--muted2);line-height:1.6;margin-top:10px}
+.note{background:#fffbeb;border:1px solid rgba(217,119,6,.3);border-radius:6px;padding:13px 16px;font-size:14px;color:#92400e;line-height:1.6;margin-top:12px}
+.info{background:#f0fdfa;border-left:3px solid var(--accent);border-radius:0 6px 6px 0;padding:13px 16px;font-size:14px;color:var(--muted2);line-height:1.6;margin-top:10px}
 
 textarea{background:var(--surface);border:1px solid var(--border);color:var(--text);
          padding:8px 12px;border-radius:4px;font-family:inherit;font-size:12px;
@@ -143,8 +143,8 @@ textarea:focus{border-color:var(--accent)}
 /* Scrollbar */
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
-::-webkit-scrollbar-thumb:hover{background:var(--border2)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--muted)}
 </style>
 </head>
 <body>
@@ -153,7 +153,7 @@ textarea:focus{border-color:var(--accent)}
   <!-- Top bar -->
   <div class="topbar">
     <div style="font-family:'Duplet',sans-serif;font-size:22px;font-weight:700;white-space:nowrap;flex-shrink:0;letter-spacing:-.2px">
-      <span style="color:white">CLEAN</span><span style="color:var(--accent)">Theory</span><span style="color:var(--muted);font-size:13px;font-weight:400;margin-left:14px;font-family:'IBM Plex Mono',monospace;letter-spacing:0">Prospect Intelligence</span>
+      <span style="color:var(--text)">CLEAN</span><span style="color:var(--accent)">Theory</span><span style="color:var(--muted);font-size:13px;font-weight:400;margin-left:14px;font-family:'IBM Plex Mono',monospace;letter-spacing:0">Prospect Intelligence</span>
     </div>
     <div class="topbar-mid">
       <div class="tab-nav">
@@ -429,7 +429,7 @@ function render() {
   const rows = getFiltered()
   document.getElementById('rc').textContent = rows.length + ' result' + (rows.length!==1?'s':'')
   if(!prospects.length) {
-    document.getElementById('tbl').innerHTML = `<div class="empty"><div class="empty-icon">📋</div><div style="font-size:14px;margin-bottom:6px">No prospects yet</div><div style="font-size:12px;color:var(--muted)">Import from Excel, Google Maps, or scrape state databases</div></div>`
+    document.getElementById('tbl').innerHTML = `<div style="text-align:center;padding:60px;color:var(--muted)"><div style="font-size:36px;margin-bottom:12px">📋</div><div style="font-size:15px;margin-bottom:6px;color:var(--text)">No prospects yet</div><div style="font-size:14px">Import from Excel, Google Maps, or scrape state databases</div></div>`
     return
   }
   const disp = rows.slice(0,500)
