@@ -683,6 +683,7 @@ async function syncNow() {
   if(!token || !gistId) { alert('Enter your GitHub token and Gist ID first.'); return }
   if(isSyncing) return
   isSyncing = true
+  lastGistEtag = null  // always fetch fresh — don't rely on cache
   setSyncStatus('idle', 'Syncing…')
   try {
     const res = await gistRequest('GET', gistId)
@@ -1431,6 +1432,7 @@ renderAll()
 // Auto-sync from Gist on startup if configured
 if(savedGhToken && savedGhGistId) {
   setSyncStatus('idle', 'Connecting to shared database…')
+  lastGistEtag = null
   setTimeout(syncNow, 800)
 }
 </script>
