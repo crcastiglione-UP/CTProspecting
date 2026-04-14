@@ -688,10 +688,27 @@ async function saveToGist() {
   isSyncing = true
   setSyncStatus('idle', 'Saving…')
   try {
-    await gistRequest('PATCH', gistId, { files:{ [GIST_FILENAME]:{ content: buildGistPayload().files[GIST_FILENAME].content } } })
+    const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28' },
+      body: JSON.stringify({ files:{ [GIST_FILENAME]:{ content: buildGistPayload().files[GIST_FILENAME].content } } })
+    })
+    if(res.status === 404 || res.status === 403) {
+      // Not the Gist owner — switch to read-only mode silently
+      dbg(`Save returned ${res.status} — this token does not own the Gist. Read-only mode.`)
+      setSyncStatus('warn', '<span class="sync-dot sync-warn"></span>Read-only — sync works but saves require the Gist owner\'s token')
+      isSyncing = false
+      return
+    }
+    if(!res.ok) {
+      const errText = await res.text()
+      throw new Error(`GitHub API ${res.status}: ${errText}`)
+    }
     const t = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
     setSyncStatus('ok', `&#10003; Saved at ${t}`)
+    dbg(`Saved to Gist at ${t}`)
   } catch(err) {
+    dbg(`Save failed: ${err.message}`)
     setSyncStatus('err', `&#9888; Save failed: ${err.message}`)
   }
   isSyncing = false
