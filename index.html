@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CLEANTheory — Prospect Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e17;--surface:#111827;--surface2:#1a2332;
+  --border:#1e3a5f;--border2:#2d4a6e;
+  --accent:#00c4a0;--text:#e2e8f0;--muted:#64748b;--muted2:#94a3b8;
+  --green:#22c55e;--blue:#3b82f6;--amber:#f59e0b;--red:#ef4444;--purple:#a855f7;
+  --green-bg:rgba(34,197,94,.12);--blue-bg:rgba(59,130,246,.12);
+  --amber-bg:rgba(245,158,11,.12);--red-bg:rgba(239,68,68,.12);--purple-bg:rgba(168,85,247,.12);
+}
+html,body{height:100%;font-family:'IBM Plex Mono',monospace;background:var(--bg);color:var(--text);font-size:13px}
+.app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+
+/* Top bar */
+.topbar{background:#0d1117;border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;gap:14px;height:50px;flex-shrink:0}
+.logo{font-family:'Syne',sans-serif;font-size:17px;font-weight:800;letter-spacing:-.3px;white-space:nowrap}
+.logo em{color:var(--accent);font-style:normal}
+.topbar-mid{flex:1;display:flex;justify-content:center}
+.tab-nav{display:flex;gap:2px;background:var(--surface2);border-radius:6px;padding:3px}
+.tab-btn{padding:5px 16px;border-radius:4px;border:none;background:none;color:var(--muted);font-family:inherit;font-size:12px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.tab-btn.on{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.topbar-right{display:flex;align-items:center;gap:8px}
+
+/* API key bar */
+.keybar{background:#0b1120;border-bottom:1px solid var(--border);padding:8px 20px;display:flex;align-items:center;gap:10px;font-size:12px;flex-shrink:0}
+.keybar label{color:var(--muted);white-space:nowrap;flex-shrink:0}
+.keybar input{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:4px;font-family:inherit;font-size:12px;width:320px;outline:none;letter-spacing:.03em}
+.keybar input:focus{border-color:var(--accent)}
+.keybar .hint{font-size:11px;color:var(--muted);flex-shrink:0}
+.keybar .hint a{color:var(--accent);text-decoration:none}
+.key-ok{color:var(--green);font-size:11px;flex-shrink:0}
+
+/* Stats */
+.stats-wrap{padding:16px 20px 0}
+.stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:11px 14px}
+.stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.stat-value{font-size:22px;font-weight:500}
+.state-pills{display:flex;flex-wrap:wrap;gap:5px;padding:0 20px 12px}
+.spill{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:2px 9px;font-size:11px;display:flex;gap:6px}
+.spill b{color:var(--accent)}
+.spill span{color:var(--muted)}
+
+/* Content panes */
+.pane{flex:1;overflow:auto;padding:16px 20px}
+
+/* Filters */
+.filters{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.filters input,.filters select{
+  background:var(--surface);border:1px solid var(--border);color:var(--text);
+  padding:6px 10px;border-radius:4px;font-family:inherit;font-size:12px;outline:none
+}
+.filters input:focus,.filters select:focus{border-color:var(--accent)}
+.filters select option{background:#111827}
+.rc{font-size:11px;color:var(--muted)}
+
+/* Table */
+.tbl-wrap{border:1px solid var(--border);border-radius:6px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:8px 12px;background:var(--surface);color:var(--muted);font-weight:500;
+   font-size:10px;letter-spacing:.05em;text-transform:uppercase;border-bottom:1px solid var(--border);
+   cursor:pointer;white-space:nowrap;user-select:none;position:sticky;top:0;z-index:1}
+th:hover{color:var(--text)}
+td{padding:7px 12px;border-bottom:1px solid rgba(30,58,95,.4);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface)}
+
+/* Badges */
+.bg{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+.bg-cul{background:var(--green-bg);color:var(--green)}
+.bg-pro{background:var(--blue-bg);color:var(--blue)}
+.bg-lab{background:var(--purple-bg);color:var(--purple)}
+.bg-act{background:var(--green-bg);color:var(--green)}
+.bg-pen{background:var(--amber-bg);color:var(--amber)}
+.bg-exp{background:var(--red-bg);color:var(--red)}
+.bg-unk{background:var(--surface2);color:var(--muted)}
+
+/* Score */
+.sc-wrap{display:flex;align-items:center;gap:7px}
+.sc-num{min-width:24px;font-weight:500}
+.sc-bar{width:44px;height:3px;background:var(--surface2);border-radius:2px;overflow:hidden}
+.sc-fill{height:100%;border-radius:2px}
+
+/* Buttons */
+.btn{padding:6px 14px;border-radius:4px;font-family:inherit;font-size:12px;cursor:pointer;border:1px solid;transition:all .15s;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#0a0e17;border-color:var(--accent);font-weight:500}
+.btn-primary:hover{filter:brightness(1.1)}
+.btn-outline{background:none;color:var(--text);border-color:var(--border)}
+.btn-outline:hover{border-color:var(--border2);background:var(--surface)}
+.btn-danger{background:none;color:var(--red);border-color:rgba(239,68,68,.3)}
+.btn-danger:hover{background:var(--red-bg)}
+.btn-scrape{background:none;color:var(--accent);border-color:rgba(0,196,160,.4);padding:5px 12px;font-size:12px}
+.btn-scrape:hover{background:rgba(0,196,160,.08)}
+.btn-scrape:disabled{opacity:.35;cursor:not-allowed}
+.btn-done{background:none;color:var(--muted2);border-color:var(--border);padding:5px 12px;font-size:12px}
+.btn-done:hover{border-color:var(--border2)}
+
+/* Import */
+.import-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px 20px;margin-bottom:12px}
+.import-title{font-size:13px;font-weight:500;margin-bottom:6px}
+.import-hint{font-size:12px;color:var(--muted2);margin-bottom:12px;line-height:1.75}
+.import-hint code{background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:11px}
+.status-ok{color:var(--green);font-size:12px;margin-left:8px}
+.status-err{color:var(--red);font-size:12px;margin-left:8px}
+
+/* DB rows */
+.db-row{display:flex;align-items:center;gap:12px;padding:11px 14px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;transition:border-color .15s}
+.db-row:hover{border-color:var(--border2)}
+.p-dot{width:26px;height:26px;border-radius:50%;background:var(--surface2);color:var(--accent);
+       display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;
+       flex-shrink:0;border:1px solid var(--border)}
+.db-info{flex:1;min-width:0}
+.db-name{font-size:12px;font-weight:500;margin-bottom:2px}
+.db-url{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.db-url a{color:var(--muted);text-decoration:none}
+.db-url a:hover{color:var(--accent)}
+
+/* Note boxes */
+.note{background:var(--surface);border:1px solid rgba(245,158,11,.3);border-radius:6px;padding:12px 14px;font-size:12px;color:var(--amber);line-height:1.6;margin-top:12px}
+.info{background:var(--surface);border-left:3px solid var(--accent);border-radius:0 6px 6px 0;padding:12px 14px;font-size:12px;color:var(--muted2);line-height:1.6;margin-top:10px}
+
+textarea{background:var(--surface);border:1px solid var(--border);color:var(--text);
+         padding:8px 12px;border-radius:4px;font-family:inherit;font-size:12px;
+         width:100%;resize:vertical;outline:none;line-height:1.6;margin-bottom:10px}
+textarea:focus{border-color:var(--accent)}
+
+.empty{text-align:center;padding:60px;color:var(--muted)}
+.empty-icon{font-size:36px;margin-bottom:12px}
+.trunc{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Spinner */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:4px}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--border2)}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="logo"><em>CLEAN</em>Theory &nbsp;<span style="color:var(--muted);font-weight:300;font-size:13px">Prospect Intelligence</span></div>
+    <div class="topbar-mid">
+      <div class="tab-nav">
+        <button class="tab-btn on" onclick="showTab('list',this)">&#9776; Prospect list</button>
+        <button class="tab-btn" onclick="showTab('import',this)">&#8679; Import data</button>
+        <button class="tab-btn" onclick="showTab('states',this)">&#9740; State databases</button>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-danger" onclick="clearAll()" style="font-size:11px;padding:5px 10px">Clear all</button>
+      <button class="btn btn-primary" onclick="exportExcel()">&#8659; Export Excel</button>
+    </div>
+  </div>
+
+  <!-- API Key bar -->
+  <div class="keybar">
+    <label>Anthropic API key</label>
+    <input type="password" id="apiKey" placeholder="sk-ant-api03-..." oninput="saveKey()" autocomplete="off">
+    <span class="key-ok" id="keyOk" style="display:none">&#10003; Saved</span>
+    <span class="hint">Required for scraping &mdash; get one free at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></span>
+  </div>
+
+  <!-- Stats (always visible) -->
+  <div class="stats-wrap">
+    <div class="stats-grid" id="stats">
+      <div class="stat-card"><div class="stat-label">Total prospects</div><div class="stat-value" style="color:var(--accent)" id="s-total">0</div></div>
+      <div class="stat-card"><div class="stat-label">Cultivators</div><div class="stat-value" style="color:var(--green)" id="s-cul">0</div></div>
+      <div class="stat-card"><div class="stat-label">Processors</div><div class="stat-value" style="color:var(--blue)" id="s-pro">0</div></div>
+      <div class="stat-card"><div class="stat-label">Testing labs</div><div class="stat-value" style="color:var(--purple)" id="s-lab">0</div></div>
+      <div class="stat-card"><div class="stat-label">Active licenses</div><div class="stat-value" style="color:var(--green)" id="s-act">0</div></div>
+    </div>
+  </div>
+  <div class="state-pills" id="spills"></div>
+
+  <!-- PANE: Prospect List -->
+  <div class="pane" id="pane-list">
+    <div class="filters">
+      <input type="text" id="q" placeholder="Search businesses..." oninput="render()" style="width:180px">
+      <select id="fs" onchange="render()">
+        <option value="">All states</option>
+        <option value="MA">MA &mdash; Priority 1</option>
+        <option value="NJ">NJ &mdash; Priority 2</option>
+        <option value="PA">PA &mdash; Priority 3</option>
+        <option value="NY">NY &mdash; Priority 3</option>
+        <option value="CT">CT &mdash; Priority 4</option>
+        <option value="RI">RI &mdash; Priority 5</option>
+        <option value="ME">ME &mdash; Priority 6</option>
+        <option value="NH">NH &mdash; Priority 6</option>
+        <option value="VT">VT &mdash; Priority 6</option>
+        <option value="MD">MD &mdash; Priority 7</option>
+        <option value="VA">VA &mdash; Priority 8</option>
+      </select>
+      <select id="ft" onchange="render()">
+        <option value="">All types</option>
+        <option value="cultivator">Cultivators</option>
+        <option value="processor">Processors</option>
+        <option value="testing_lab">Testing labs</option>
+      </select>
+      <select id="fst" onchange="render()">
+        <option value="">All statuses</option>
+        <option value="active">Active</option>
+        <option value="pending">Pending</option>
+        <option value="expired">Expired</option>
+        <option value="unknown">Unknown</option>
+      </select>
+      <span class="rc" id="rc"></span>
+    </div>
+    <div class="tbl-wrap" id="tbl"></div>
+  </div>
+
+  <!-- PANE: Import -->
+  <div class="pane" id="pane-import" style="display:none;max-width:700px">
+
+    <div class="import-card">
+      <div class="import-title">&#9635; Excel / CSV upload</div>
+      <div class="import-hint">
+        Upload any <code>.xlsx</code> or <code>.csv</code> file. Column names are auto-detected &mdash; your file doesn't need to match any exact format.
+        Recognized headers include: Business Name, Name, Company, License Number, Type, State, City, Address, Phone, Email, Website, Status, Notes.
+        Duplicates (same name + state) are automatically blocked.
+      </div>
+      <input type="file" id="ef" accept=".xlsx,.xls,.csv" onchange="doXL(event)" style="display:none">
+      <button class="btn btn-outline" onclick="document.getElementById('ef').click()">Choose file&hellip;</button>
+      <span id="es"></span>
+    </div>
+
+    <div class="import-card">
+      <div class="import-title">&#9728; Google Maps custom list</div>
+      <div class="import-hint">
+        To export your custom map from Google My Maps:<br>
+        1. Open your map at <a href="https://mymaps.google.com" target="_blank" style="color:var(--accent)">mymaps.google.com</a><br>
+        2. Click the <code>&#8942;</code> menu next to your layer name<br>
+        3. Choose <strong>Export to KML/KMZ</strong><br>
+        4. Uncheck &ldquo;Export to .kmz format&rdquo; &mdash; this gives you a .kml file<br>
+        5. Open the file in a text editor, select all, paste below<br><br>
+        Or paste a plain list: one business per line, or <code>Name, City, State</code> format.
+      </div>
+      <textarea id="gm" rows="8" placeholder="Paste KML content or plain business list here..."></textarea>
+      <button class="btn btn-outline" onclick="doGM()">Import</button>
+      <span id="gms"></span>
+    </div>
+
+    <div class="info">
+      Need help? If your spreadsheet uses different column names or a different layout, paste a few sample rows in the chat with Claude and ask for help mapping the columns before importing.
+    </div>
+  </div>
+
+  <!-- PANE: State Databases -->
+  <div class="pane" id="pane-states" style="display:none">
+    <p style="font-size:12px;color:var(--muted2);margin-bottom:14px">
+      Listed in your target priority order. Click <strong style="color:var(--accent)">Scrape</strong> to pull active licensees via AI-assisted web search.
+      Enter your Anthropic API key in the bar above before scraping.
+    </p>
+    <div id="dblist"></div>
+    <div class="note">
+      &#9888;&nbsp; AI scraping is best-effort &mdash; state database formats and access vary. After scraping, review imported records and correct any entity types or statuses that look wrong.
+      For the most complete and accurate data, download official CSV/Excel exports directly from each state&rsquo;s website when available.
+    </div>
+  </div>
+
+</div><!-- .app -->
+
+<script>
+// ─── Data ───────────────────────────────────────────────
+const SP = {MA:1,NJ:2,PA:3,NY:3,CT:4,RI:5,ME:6,NH:6,VT:6,MD:7,VA:8}
+const EP = {cultivator:1,processor:2,testing_lab:3}
+const DBS = [
+  {s:'MA',p:1,n:'MA Cannabis Control Commission',url:'https://masscannabiscontrol.com/licensing/licensee-list/'},
+  {s:'NJ',p:2,n:'NJ Cannabis Regulatory Commission',url:'https://www.nj.gov/cannabis/businesses/licensed-businesses.shtml'},
+  {s:'PA',p:3,n:'PA Dept of Health – Medical Cannabis',url:'https://www.health.pa.gov/topics/programs/Medical%20Marijuana/Pages/Industry.aspx'},
+  {s:'NY',p:3,n:'NY Office of Cannabis Management',url:'https://cannabis.ny.gov/licensee-list'},
+  {s:'CT',p:4,n:'CT Dept of Consumer Protection',url:'https://portal.ct.gov/DCP/Cannabis-Licensing/Resources/Licensed-Cannabis-Establishments'},
+  {s:'RI',p:5,n:'RI Dept of Business Regulation',url:'https://dbr.ri.gov/cannabis/licensing/active-licensees'},
+  {s:'ME',p:6,n:'ME Office of Cannabis Policy',url:'https://www.maine.gov/dafs/ocp/adult-use/licensing/current-licensees'},
+  {s:'NH',p:6,n:'NH Therapeutic Cannabis Program',url:'https://www.dhhs.nh.gov/programs-services/behavioral-health/therapeutic-cannabis'},
+  {s:'VT',p:6,n:'VT Cannabis Control Board',url:'https://ccb.vermont.gov/licensee-search'},
+  {s:'MD',p:7,n:'MD Cannabis Administration',url:'https://cca.maryland.gov/pages/industry.aspx'},
+  {s:'VA',p:8,n:'VA Cannabis Control Authority',url:'https://www.vca.virginia.gov/'},
+]
+
+let prospects = []
+let sortF = 'priorityScore', sortD = -1
+let scrSt = {}
+
+// ─── Persistence ────────────────────────────────────────
+function save() {
+  try { localStorage.setItem('ct_prospects', JSON.stringify(prospects)) } catch(e){}
+}
+function load() {
+  try { prospects = JSON.parse(localStorage.getItem('ct_prospects')||'[]') } catch(e){ prospects = [] }
+}
+function saveKey() {
+  const k = document.getElementById('apiKey').value.trim()
+  try { localStorage.setItem('ct_apikey', k) } catch(e){}
+  document.getElementById('keyOk').style.display = k ? '' : 'none'
+}
+function getKey() {
+  return document.getElementById('apiKey').value.trim() || (localStorage.getItem('ct_apikey')||'')
+}
+
+// ─── Scoring ────────────────────────────────────────────
+function calcScore(p) {
+  const sp = SP[p.state]||10, ep = EP[p.entityType]||4
+  const bon = p.licenseStatus==='active'?15 : p.licenseStatus==='pending'?5 : 0
+  return Math.max(0, Math.min(100, Math.round((9-sp)/8*50 + (4-ep)/3*35 + bon)))
+}
+
+// ─── Normalizers ────────────────────────────────────────
+function ntType(t) {
+  t = (t||'').toLowerCase()
+  if(/culti|grow|farm|plant|flower|tier\s*1|adult.use.*culti/.test(t)) return 'cultivator'
+  if(/process|manufactur|product|extract|infus|tier\s*2|mip/.test(t)) return 'processor'
+  if(/test|lab|analy|certif/.test(t)) return 'testing_lab'
+  return 'cultivator'
+}
+function ntStatus(s) {
+  s = (s||'').toLowerCase()
+  if(/active|approv|current|valid|licens/.test(s)) return 'active'
+  if(/pend|provis|interim|conditional|application/.test(s)) return 'pending'
+  if(/expir|revok|suspend|cancel|void|denied/.test(s)) return 'expired'
+  return 'unknown'
+}
+function ntState(txt) {
+  const sts = ['MA','NJ','NY','PA','CT','RI','ME','NH','VT','MD','VA']
+  for(const s of sts) { if(new RegExp(`\\b${s}\\b`).test(txt)) return s }
+  return ''
+}
+
+// ─── Prospect management ────────────────────────────────
+function addProspects(arr) {
+  const key = p => ((p.businessName||'').toLowerCase().trim() + '|' + (p.state||'').toUpperCase())
+  const ex = new Set(prospects.map(key))
+  let n = 0
+  for(const p of arr) {
+    if(!p.businessName) continue
+    const k = key(p)
+    if(!ex.has(k)) {
+      ex.add(k)
+      prospects.push({...p, id: Math.random().toString(36).slice(2,9), dateAdded: today(), priorityScore: calcScore(p)})
+      n++
+    }
+  }
+  save()
+  renderAll()
+  return n
+}
+
+function today() { return new Date().toISOString().split('T')[0] }
+
+function clearAll() {
+  if(!confirm('Clear all prospects? This cannot be undone.')) return
+  prospects = []
+  scrSt = {}
+  save()
+  renderAll()
+}
+
+// ─── Filtering / sorting ────────────────────────────────
+function getFiltered() {
+  const q = (document.getElementById('q').value||'').toLowerCase()
+  const fs = document.getElementById('fs').value
+  const ft = document.getElementById('ft').value
+  const fst = document.getElementById('fst').value
+  return prospects.filter(p => {
+    if(fs && p.state !== fs) return false
+    if(ft && p.entityType !== ft) return false
+    if(fst && p.licenseStatus !== fst) return false
+    if(q && !((p.businessName||'').toLowerCase().includes(q)||(p.city||'').toLowerCase().includes(q)||(p.address||'').toLowerCase().includes(q))) return false
+    return true
+  }).sort((a,b) => {
+    const av = a[sortF]??'', bv = b[sortF]??''
+    return av < bv ? sortD : av > bv ? -sortD : 0
+  })
+}
+
+function sortBy(f) {
+  if(sortF === f) sortD *= -1; else { sortF = f; sortD = -1 }
+  render()
+}
+
+// ─── Badge helpers ───────────────────────────────────────
+function typeBadge(t) {
+  const cls = t==='cultivator'?'bg-cul':t==='processor'?'bg-pro':'bg-lab'
+  const lbl = t==='cultivator'?'Cultivator':t==='processor'?'Processor':t==='testing_lab'?'Testing lab':t||'—'
+  return `<span class="bg ${cls}">${lbl}</span>`
+}
+function statusBadge(s) {
+  const cls = s==='active'?'bg-act':s==='pending'?'bg-pen':s==='expired'?'bg-exp':'bg-unk'
+  return `<span class="bg ${cls}">${s||'unknown'}</span>`
+}
+function scColor(n) { return n>=75?'var(--green)':n>=45?'var(--amber)':'var(--muted)' }
+function thH(f, label) {
+  const cls = sortF===f ? (sortD===-1?'sort-desc':'sort-asc') : ''
+  return `<th class="${cls}" onclick="sortBy('${f}')">${label}</th>`
+}
+
+// ─── Render stats ────────────────────────────────────────
+function renderStats() {
+  document.getElementById('s-total').textContent = prospects.length
+  document.getElementById('s-cul').textContent = prospects.filter(p=>p.entityType==='cultivator').length
+  document.getElementById('s-pro').textContent = prospects.filter(p=>p.entityType==='processor').length
+  document.getElementById('s-lab').textContent = prospects.filter(p=>p.entityType==='testing_lab').length
+  document.getElementById('s-act').textContent = prospects.filter(p=>p.licenseStatus==='active').length
+  const bySt = {}
+  for(const p of prospects) bySt[p.state] = (bySt[p.state]||0)+1
+  const sorted = Object.entries(bySt).sort((a,b) => (SP[a[0]]||99)-(SP[b[0]]||99))
+  document.getElementById('spills').innerHTML = sorted.map(([s,c]) =>
+    `<div class="spill"><b>${s}</b><span>${c}</span></div>`
+  ).join('')
+}
+
+// ─── Render table ────────────────────────────────────────
+function render() {
+  const rows = getFiltered()
+  document.getElementById('rc').textContent = rows.length + ' result' + (rows.length!==1?'s':'')
+  if(!prospects.length) {
+    document.getElementById('tbl').innerHTML = `<div class="empty"><div class="empty-icon">📋</div><div style="font-size:14px;margin-bottom:6px">No prospects yet</div><div style="font-size:12px;color:var(--muted)">Import from Excel, Google Maps, or scrape state databases</div></div>`
+    return
+  }
+  const disp = rows.slice(0,500)
+  document.getElementById('tbl').innerHTML = `<table>
+    <thead><tr>
+      ${thH('priorityScore','Score')}
+      ${thH('businessName','Business name')}
+      ${thH('entityType','Type')}
+      ${thH('state','State')}
+      ${thH('city','City')}
+      ${thH('licenseStatus','Status')}
+      <th>License #</th><th>Phone</th><th>Email</th><th>Contact</th><th>Source</th>
+    </tr></thead>
+    <tbody>${disp.map(p => `<tr>
+      <td style="white-space:nowrap">
+        <div class="sc-wrap">
+          <span class="sc-num" style="color:${scColor(p.priorityScore)}">${p.priorityScore}</span>
+          <div class="sc-bar"><div class="sc-fill" style="width:${p.priorityScore}%;background:${scColor(p.priorityScore)}"></div></div>
+        </div>
+      </td>
+      <td class="trunc" style="font-weight:500;max-width:200px">${p.businessName||''}</td>
+      <td>${typeBadge(p.entityType)}</td>
+      <td style="white-space:nowrap"><span style="font-weight:600;color:var(--accent)">${p.state||'?'}</span>${SP[p.state]?`<span style="font-size:10px;color:var(--muted);margin-left:3px">P${SP[p.state]}</span>`:''}</td>
+      <td style="color:var(--muted2)">${p.city||''}</td>
+      <td>${statusBadge(p.licenseStatus)}</td>
+      <td style="color:var(--muted);font-size:11px">${p.licenseNumber||'—'}</td>
+      <td style="color:var(--muted2);font-size:11px">${p.phone||'—'}</td>
+      <td style="color:var(--muted2);font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.email||'—'}</td>
+      <td style="color:var(--muted2);font-size:11px">${p.contactName||'—'}</td>
+      <td style="color:var(--muted);font-size:11px;white-space:nowrap">${(p.source||'').replace('state_','').toUpperCase()}</td>
+    </tr>`).join('')}</tbody>
+  </table>${rows.length>500?`<div style="text-align:center;padding:10px;font-size:12px;color:var(--muted)">Showing 500 of ${rows.length} — export to Excel to see all</div>`:''}`
+}
+
+// ─── Render DB list ──────────────────────────────────────
+function renderDBList() {
+  document.getElementById('dblist').innerHTML = DBS.map(db => {
+    const st = scrSt[db.s] || {status:'idle'}
+    const cnt = prospects.filter(p=>p.state===db.s).length
+    let btnHtml
+    if(st.status==='loading') {
+      btnHtml = `<span class="scrape-loading" style="font-size:12px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:6px"><span class="spin"></span>Searching…</span>`
+    } else if(st.status==='done') {
+      btnHtml = `<button class="btn btn-done" onclick="doScrape('${db.s}','${db.n}','${db.url}')">Re-scrape</button>`
+    } else if(st.status==='error') {
+      btnHtml = `<span style="font-size:11px;color:var(--red)">Failed</span><button class="btn btn-scrape" onclick="doScrape('${db.s}','${db.n}','${db.url}')" style="margin-left:8px">Retry</button>`
+    } else {
+      btnHtml = `<button class="btn btn-scrape" onclick="doScrape('${db.s}','${db.n}','${db.url}')">Scrape</button>`
+    }
+    return `<div class="db-row">
+      <div class="p-dot">${db.p}</div>
+      <div class="db-info">
+        <div class="db-name"><span style="color:var(--accent);margin-right:8px">${db.s}</span>${db.n}</div>
+        <div class="db-url"><a href="${db.url}" target="_blank">${db.url}</a></div>
+      </div>
+      ${cnt>0?`<span style="font-size:12px;color:var(--green);white-space:nowrap;flex-shrink:0">${cnt} imported</span>`:''}
+      <div style="flex-shrink:0">${btnHtml}</div>
+    </div>`
+  }).join('')
+}
+
+function renderAll() { renderStats(); render(); renderDBList() }
+
+// ─── Tab switching ────────────────────────────────────────
+function showTab(name, btn) {
+  ['list','import','states'].forEach(t => {
+    document.getElementById('pane-'+t).style.display = t===name ? '' : 'none'
+  })
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('on'))
+  btn.classList.add('on')
+}
+
+// ─── Excel import ─────────────────────────────────────────
+function doXL(e) {
+  const file = e.target.files[0]; if(!file) return
+  const r = new FileReader()
+  r.onload = ev => {
+    try {
+      const wb = XLSX.read(ev.target.result, {type:'binary'})
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const rows = XLSX.utils.sheet_to_json(ws, {defval:''})
+      const get = (row, ...keys) => {
+        for(const k of keys) {
+          for(const rk of Object.keys(row)) {
+            if(rk.toLowerCase().trim() === k.toLowerCase()) return (row[rk]||'').toString().trim()
+          }
+        }
+        return ''
+      }
+      const mapped = rows.map(row => ({
+        businessName: get(row,'business name','name','company','dba','licensee')||'',
+        licenseNumber: get(row,'license number','license #','license','lic #','lic number','license_number')||'',
+        entityType: ntType(get(row,'type','license type','entity type','category','license category')),
+        state: (get(row,'state','st','state code')||'').toUpperCase().trim(),
+        city: get(row,'city','municipality','town','city/town')||'',
+        address: get(row,'address','street address','street','full address')||'',
+        phone: get(row,'phone','telephone','tel','phone number','phone #')||'',
+        email: get(row,'email','email address','e-mail','contact email')||'',
+        website: get(row,'website','url','web','web address','site')||'',
+        contactName: get(row,'contact','contact name','owner','primary contact','representative')||'',
+        licenseStatus: ntStatus(get(row,'status','license status','lic status','active?')),
+        source: 'excel',
+        notes: get(row,'notes','comments','notes/comments','memo')||''
+      })).filter(p => p.businessName)
+      const added = addProspects(mapped)
+      document.getElementById('es').className = 'status-ok'
+      document.getElementById('es').textContent = `✓ Added ${added} of ${rows.length} rows`
+    } catch(err) {
+      document.getElementById('es').className = 'status-err'
+      document.getElementById('es').textContent = 'Error: ' + err.message
+    }
+  }
+  r.readAsBinaryString(file)
+}
+
+// ─── Google Maps import ───────────────────────────────────
+function doGM() {
+  const raw = (document.getElementById('gm').value||'').trim()
+  if(!raw) { document.getElementById('gms').textContent='Nothing to import'; return }
+  let parsed = []
+  if(raw.includes('<Placemark') || raw.includes('<kml')) {
+    const kml = new DOMParser().parseFromString(raw, 'text/xml')
+    kml.querySelectorAll('Placemark').forEach(pm => {
+      const name = (pm.querySelector('name')?.textContent||'').trim()
+      const desc = (pm.querySelector('description')?.textContent||'').trim()
+      const addr = (pm.querySelector('address')?.textContent||'').trim()
+      if(name) parsed.push({
+        businessName:name, address:addr, notes:desc, source:'google_maps',
+        state:ntState(addr+' '+desc), city:'',
+        entityType:ntType(name+' '+desc), licenseStatus:'unknown',
+        licenseNumber:'',phone:'',email:'',website:'',contactName:''
+      })
+    })
+  } else {
+    raw.split('\n').filter(l=>l.trim()).forEach(line => {
+      const parts = line.split(',').map(s=>s.trim())
+      const st = (parts[2]||ntState(line)||'').toUpperCase().slice(0,2)
+      parsed.push({
+        businessName:parts[0]||'', city:parts[1]||'', state:st,
+        address:parts.slice(1).join(', '), source:'google_maps',
+        entityType:ntType(parts[0]||''), licenseStatus:'unknown',
+        licenseNumber:'',phone:'',email:'',website:'',contactName:'',notes:''
+      })
+    })
+  }
+  const added = addProspects(parsed.filter(p=>p.businessName))
+  const el = document.getElementById('gms')
+  el.className = 'status-ok'
+  el.textContent = `✓ Added ${added} prospects`
+  document.getElementById('gm').value = ''
+}
+
+// ─── State scraping ───────────────────────────────────────
+async function doScrape(sc, sn, url) {
+  const apiKey = getKey()
+  if(!apiKey) {
+    alert('Please enter your Anthropic API key in the bar at the top of the page before scraping.\n\nGet a free key at console.anthropic.com')
+    return
+  }
+  scrSt[sc] = {status:'loading'}
+  renderDBList()
+
+  const prompt = `Search the web for cannabis businesses currently licensed in ${sn} (${sc}). Use the official state cannabis authority database at ${url} and any other official government sources.
+
+Return ONLY a JSON array — no markdown, no preamble, no explanation, no backticks. ONLY the raw JSON array starting with [ and ending with ]:
+[{"businessName":"Example Farm LLC","licenseNumber":"MC-2024-001","entityType":"cultivator","city":"Springfield","state":"${sc}","address":"123 Main St, Springfield, ${sc} 01001","phone":"413-555-0100","email":"info@example.com","website":"","licenseStatus":"active"}]
+
+Important rules:
+- entityType must be EXACTLY one of: "cultivator", "processor", or "testing_lab"
+- licenseStatus must be EXACTLY one of: "active", "pending", "expired", or "unknown"  
+- Include ALL three license types found: cultivators/growers/farms, processors/manufacturers/extractors/MIPs, and testing/analytical labs
+- Only include businesses actually in ${sc}
+- Aim for 20 to 100+ entries
+- Return ONLY the JSON array, nothing else before or after`
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:5000,
+        tools:[{type:'web_search_20250305',name:'web_search'}],
+        messages:[{role:'user',content:prompt}]
+      })
+    })
+    const data = await res.json()
+    if(data.error) throw new Error(data.error.message)
+
+    const txt = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('')
+    const m = txt.match(/\[[\s\S]*\]/)
+    if(!m) throw new Error('No JSON array found in response')
+    let parsed; try { parsed = JSON.parse(m[0]) } catch(e) { throw new Error('JSON parse failed: '+e.message) }
+    if(!Array.isArray(parsed) || !parsed.length) throw new Error('Empty or invalid array returned')
+
+    const mapped = parsed.map(p => ({
+      businessName: (p.businessName||p.name||'').trim(),
+      licenseNumber: p.licenseNumber||'',
+      entityType: ntType(p.entityType||''),
+      state: (p.state||sc).toUpperCase().slice(0,2),
+      city: p.city||'', address: p.address||'',
+      phone: p.phone||'', email: p.email||'',
+      website: p.website||'', contactName: p.contactName||'',
+      licenseStatus: ntStatus(p.licenseStatus||''),
+      source: 'state_'+sc.toLowerCase(), notes:''
+    })).filter(p => p.businessName)
+
+    const added = addProspects(mapped)
+    scrSt[sc] = {status:'done', count:added}
+  } catch(err) {
+    console.error('Scrape error:', err)
+    scrSt[sc] = {status:'error', msg:err.message}
+  }
+  renderDBList()
+}
+
+// ─── Excel export ─────────────────────────────────────────
+function exportExcel() {
+  const rows = getFiltered()
+  if(!rows.length) { alert('No prospects to export.'); return }
+  const typeLabel = t => t==='cultivator'?'Cultivator':t==='processor'?'Processor':t==='testing_lab'?'Testing lab':t||''
+  const data = rows.map(p => ({
+    'Priority score': p.priorityScore,
+    'Business name': p.businessName,
+    'Type': typeLabel(p.entityType),
+    'State': p.state,
+    'City': p.city,
+    'Address': p.address,
+    'License #': p.licenseNumber,
+    'Status': p.licenseStatus,
+    'Phone': p.phone,
+    'Email': p.email,
+    'Website': p.website,
+    'Contact name': p.contactName,
+    'Source': p.source,
+    'Notes': p.notes,
+    'Date added': p.dateAdded
+  }))
+  const ws = XLSX.utils.json_to_sheet(data)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Prospects')
+  XLSX.writeFile(wb, 'CLEANTheory_Prospects_' + today() + '.xlsx')
+}
+
+// ─── Init ─────────────────────────────────────────────────
+load()
+const savedKey = localStorage.getItem('ct_apikey')||''
+if(savedKey) {
+  document.getElementById('apiKey').value = savedKey
+  document.getElementById('keyOk').style.display = ''
+}
+renderAll()
+</script>
+</body>
+</html>
