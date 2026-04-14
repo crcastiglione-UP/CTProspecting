@@ -728,12 +728,10 @@ async function syncNow() {
 
     let raw
     if(fileInfo.truncated || !fileInfo.content) {
-      dbg(`Fetching from raw_url: ${fileInfo.raw_url}`)
+      dbg(`Fetching from raw_url (no auth header — CDN uses signed URL): ${fileInfo.raw_url}`)
       if(!fileInfo.raw_url) throw new Error('File truncated and no raw_url available')
       setSyncStatus('idle', 'Fetching large dataset…')
-      const rawRes = await fetch(fileInfo.raw_url, {
-        headers: { 'Authorization': `Bearer ${token}`, 'X-GitHub-Api-Version': '2022-11-28' }
-      })
+      const rawRes = await fetch(fileInfo.raw_url)  // no Authorization — raw URL is already signed
       dbg(`Raw URL response: ${rawRes.status} ${rawRes.statusText}`)
       if(!rawRes.ok) throw new Error(`Raw fetch failed: ${rawRes.status}`)
       raw = await rawRes.text()
