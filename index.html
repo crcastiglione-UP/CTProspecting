@@ -160,6 +160,7 @@ textarea:focus{border-color:var(--accent)}
         <button class="tab-btn on" onclick="showTab('list',this)">&#9776; Prospect list</button>
         <button class="tab-btn" onclick="showTab('import',this)">&#8679; Import data</button>
         <button class="tab-btn" onclick="showTab('states',this)">&#9740; State databases</button>
+        <button class="tab-btn" onclick="showTab('intel',this)">&#9432; How we process data</button>
       </div>
     </div>
     <div class="topbar-right">
@@ -219,6 +220,16 @@ textarea:focus{border-color:var(--accent)}
         <option value="expired">Expired</option>
         <option value="unknown">Unknown</option>
       </select>
+      <select id="fr" onchange="render()" title="Distance from Easthampton, MA">
+        <option value="">Any distance</option>
+        <option value="50">Within 50 mi</option>
+        <option value="100">Within 100 mi</option>
+        <option value="150">Within 150 mi</option>
+        <option value="200">Within 200 mi</option>
+        <option value="300">Within 300 mi</option>
+        <option value="500">Within 500 mi</option>
+      </select>
+      <span style="font-size:12px;color:var(--muted)" title="Distance measured from Easthampton, MA">&#8982; from Easthampton, MA</span>
       <span class="rc" id="rc"></span>
     </div>
     <div class="tbl-wrap" id="tbl"></div>
@@ -273,12 +284,122 @@ textarea:focus{border-color:var(--accent)}
     </div>
   </div>
 
+  <!-- PANE: How we process data -->
+  <div class="pane" id="pane-intel" style="display:none;max-width:820px">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+
+      <div class="import-card">
+        <div class="import-title" style="color:var(--accent)">&#9650; Priority scoring</div>
+        <div class="import-hint" style="margin-bottom:0">
+          Every prospect gets a score from 0–100 built from three factors:<br><br>
+          <strong style="color:var(--text)">State weight (50 pts max)</strong><br>
+          MA scores highest (50 pts). VA lowest (6 pts). PA and NY are tied at priority 3.<br><br>
+          <strong style="color:var(--text)">Entity type (35 pts max)</strong><br>
+          Cultivators get the full 35 pts. Processors get 23 pts. Testing labs get 12 pts.<br><br>
+          <strong style="color:var(--text)">License status (15 pts max)</strong><br>
+          Active: +15 pts &nbsp; Pending: +5 pts &nbsp; Expired/unknown: +0 pts<br><br>
+          A MA cultivator with an active license scores <strong style="color:var(--green)">100</strong>. A VA testing lab with an expired license scores <strong style="color:var(--muted)">~18</strong>.
+        </div>
+      </div>
+
+      <div class="import-card">
+        <div class="import-title" style="color:var(--accent)">&#8644; Deduplication</div>
+        <div class="import-hint" style="margin-bottom:0">
+          When you import from multiple sources, the same business often appears more than once.<br><br>
+          <strong style="color:var(--text)">Automatic blocking</strong><br>
+          Any record with the same business name + state as an existing entry is blocked on import. Catches exact duplicates across all sources.<br><br>
+          <strong style="color:var(--text)">Fuzzy matching (review phase)</strong><br>
+          Claude will scan for near-matches: "Green Leaf Farms LLC" vs "Green Leaf Farm", abbreviations, DBA names, and address duplicates with different business names.<br><br>
+          <strong style="color:var(--text)">Best data wins</strong><br>
+          When duplicates are merged, the record with the most complete contact info is kept as the primary.
+        </div>
+      </div>
+
+      <div class="import-card">
+        <div class="import-title" style="color:var(--accent)">&#9873; Entity classification</div>
+        <div class="import-hint" style="margin-bottom:0">
+          State databases use wildly inconsistent license category names. The app normalizes them automatically:<br><br>
+          <span style="color:var(--green);font-weight:500">Cultivator</span> — cultivat, grow, farm, plant, flower, Tier 1<br>
+          <span style="color:var(--blue);font-weight:500">Processor</span> — process, manufactur, extract, infus, MIP, Tier 2<br>
+          <span style="color:var(--purple);font-weight:500">Testing lab</span> — test, lab, analy, certif<br><br>
+          During review, Claude flags any record where the classification looks wrong based on the business name or address, and asks you to confirm before changing it.
+        </div>
+      </div>
+
+      <div class="import-card">
+        <div class="import-title" style="color:var(--accent)">&#8982; Distance filtering</div>
+        <div class="import-hint" style="margin-bottom:0">
+          All distances are measured from <strong style="color:var(--text)">Easthampton, MA</strong> using the Haversine formula (straight-line, not driving distance).<br><br>
+          <strong style="color:var(--text)">Exact</strong> — scraped records request lat/lng from the AI. Distance is precise to the address.<br><br>
+          <strong style="color:var(--text)">Estimated (~)</strong> — Excel or Google Maps records without coordinates use the geographic center of their state. Can be off by 50–100 miles for large states like NY and PA. A tilde marks estimated distances in the table.<br><br>
+          Use the radius filter in the Prospect list tab to narrow to a specific distance from Easthampton.
+        </div>
+      </div>
+
+      <div class="import-card">
+        <div class="import-title" style="color:var(--accent)">&#9906; Address validation (review phase)</div>
+        <div class="import-hint" style="margin-bottom:0">
+          A licensed address is not always the grow site. During full review, Claude flags:<br><br>
+          &bull; Law firm or registered agent addresses (downtown, suite numbers)<br>
+          &bull; Corporate HQ that doesn't match the license city<br>
+          &bull; PO Box addresses with no physical location<br>
+          &bull; Addresses shared across multiple records (same registered agent)<br><br>
+          Flagged records get a note added. You decide whether to keep, update, or remove.
+        </div>
+      </div>
+
+      <div class="import-card">
+        <div class="import-title" style="color:var(--accent)">&#9889; Enrichment (review phase)</div>
+        <div class="import-hint" style="margin-bottom:0">
+          For high-priority records (MA and NJ cultivators first), Claude web-searches to fill missing data:<br><br>
+          &bull; <strong style="color:var(--text)">Phone &amp; email</strong> — from company website, LinkedIn, state filings<br>
+          &bull; <strong style="color:var(--text)">Contact name &amp; title</strong> — Cultivation Director, COO, Operations Manager (not the license attorney)<br>
+          &bull; <strong style="color:var(--text)">Facility confirmation</strong> — verifying the address is an actual grow site<br>
+          &bull; <strong style="color:var(--text)">Operational status</strong> — some licensed businesses are not yet operating<br><br>
+          Enrichment runs in batches. You review and approve before anything is saved.
+        </div>
+      </div>
+
+    </div>
+
+    <div class="info">
+      <strong>Ready to start the review?</strong> Once you've loaded your data and run the state scrapes, come back to Claude and say "Let's review the prospect data" — Claude will walk through the list systematically, flagging duplicates, bad addresses, misclassified entities, and missing contacts for your approval.
+    </div>
+
+  </div>
+
 </div><!-- .app -->
 
 <script>
 // ─── Data ───────────────────────────────────────────────
 const SP = {MA:1,NJ:2,PA:3,NY:3,CT:4,RI:5,ME:6,NH:6,VT:6,MD:7,VA:8}
 const EP = {cultivator:1,processor:2,testing_lab:3}
+
+// Home base: Easthampton, MA
+const HOME = {lat:42.2668, lng:-72.6679}
+
+// State geographic centroids — used when a prospect has no exact coordinates
+const CENTROIDS = {
+  MA:{lat:42.4072,lng:-71.3824}, CT:{lat:41.6032,lng:-73.0877},
+  RI:{lat:41.5801,lng:-71.4774}, NH:{lat:43.1939,lng:-71.5724},
+  VT:{lat:44.0459,lng:-72.7107}, ME:{lat:45.2538,lng:-69.4455},
+  NY:{lat:42.1657,lng:-74.9481}, NJ:{lat:40.0583,lng:-74.4057},
+  PA:{lat:41.2033,lng:-77.1945}, MD:{lat:39.0458,lng:-76.6413},
+  VA:{lat:37.4316,lng:-78.6569}
+}
+
+function haversine(lat1,lng1,lat2,lng2){
+  const R=3959, dLat=(lat2-lat1)*Math.PI/180, dLng=(lng2-lng1)*Math.PI/180
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2
+  return Math.round(R*2*Math.asin(Math.sqrt(a)))
+}
+
+function calcDist(p){
+  if(p.lat && p.lng) return {miles:haversine(HOME.lat,HOME.lng,+p.lat,+p.lng), estimated:false}
+  const c = CENTROIDS[p.state]
+  return c ? {miles:haversine(HOME.lat,HOME.lng,c.lat,c.lng), estimated:true} : null
+}
 const DBS = [
   {s:'MA',p:1,n:'MA Cannabis Control Commission',url:'https://masscannabiscontrol.com/licensing/licensee-list/'},
   {s:'NJ',p:2,n:'NJ Cannabis Regulatory Commission',url:'https://www.nj.gov/cannabis/businesses/licensed-businesses.shtml'},
@@ -351,7 +472,8 @@ function addProspects(arr) {
     const k = key(p)
     if(!ex.has(k)) {
       ex.add(k)
-      prospects.push({...p, id: Math.random().toString(36).slice(2,9), dateAdded: today(), priorityScore: calcScore(p)})
+      const dist = calcDist(p)
+      prospects.push({...p, id: Math.random().toString(36).slice(2,9), dateAdded: today(), priorityScore: calcScore(p), distanceMiles: dist?.miles??null, distEstimated: dist?.estimated??true})
       n++
     }
   }
@@ -376,10 +498,12 @@ function getFiltered() {
   const fs = document.getElementById('fs').value
   const ft = document.getElementById('ft').value
   const fst = document.getElementById('fst').value
+  const fr = parseInt(document.getElementById('fr').value)||0
   return prospects.filter(p => {
     if(fs && p.state !== fs) return false
     if(ft && p.entityType !== ft) return false
     if(fst && p.licenseStatus !== fst) return false
+    if(fr && p.distanceMiles != null && p.distanceMiles > fr) return false
     if(q && !((p.businessName||'').toLowerCase().includes(q)||(p.city||'').toLowerCase().includes(q)||(p.address||'').toLowerCase().includes(q))) return false
     return true
   }).sort((a,b) => {
@@ -436,6 +560,7 @@ function render() {
   document.getElementById('tbl').innerHTML = `<table>
     <thead><tr>
       ${thH('priorityScore','Score')}
+      ${thH('distanceMiles','Distance')}
       ${thH('businessName','Business name')}
       ${thH('entityType','Type')}
       ${thH('state','State')}
@@ -450,6 +575,7 @@ function render() {
           <div class="sc-bar"><div class="sc-fill" style="width:${p.priorityScore}%;background:${scColor(p.priorityScore)}"></div></div>
         </div>
       </td>
+      <td style="white-space:nowrap;color:var(--muted2);font-size:13px">${p.distanceMiles!=null?`${p.distanceMiles} mi${p.distEstimated?'<span title="Estimated from state centroid" style="color:var(--muted);font-size:11px"> ~</span>':''}` :'—'}</td>
       <td class="trunc" style="font-weight:500;max-width:200px">${p.businessName||''}</td>
       <td>${typeBadge(p.entityType)}</td>
       <td style="white-space:nowrap"><span style="font-weight:600;color:var(--accent)">${p.state||'?'}</span>${SP[p.state]?`<span style="font-size:10px;color:var(--muted);margin-left:3px">P${SP[p.state]}</span>`:''}</td>
@@ -494,7 +620,7 @@ function renderAll() { renderStats(); render(); renderDBList() }
 
 // ─── Tab switching ────────────────────────────────────────
 function showTab(name, btn) {
-  ['list','import','states'].forEach(t => {
+  ['list','import','states','intel'].forEach(t => {
     document.getElementById('pane-'+t).style.display = t===name ? '' : 'none'
   })
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('on'))
@@ -594,7 +720,7 @@ async function doScrape(sc, sn, url) {
   const prompt = `Search the web for cannabis businesses currently licensed in ${sn} (${sc}). Use the official state cannabis authority database at ${url} and any other official government sources.
 
 Return ONLY a JSON array — no markdown, no preamble, no explanation, no backticks. ONLY the raw JSON array starting with [ and ending with ]:
-[{"businessName":"Example Farm LLC","licenseNumber":"MC-2024-001","entityType":"cultivator","city":"Springfield","state":"${sc}","address":"123 Main St, Springfield, ${sc} 01001","phone":"413-555-0100","email":"info@example.com","website":"","licenseStatus":"active"}]
+[{"businessName":"Example Farm LLC","licenseNumber":"MC-2024-001","entityType":"cultivator","city":"Springfield","state":"${sc}","address":"123 Main St, Springfield, ${sc} 01001","phone":"413-555-0100","email":"info@example.com","website":"","licenseStatus":"active","lat":42.1015,"lng":-72.5898}]
 
 Important rules:
 - entityType must be EXACTLY one of: "cultivator", "processor", or "testing_lab"
@@ -602,6 +728,7 @@ Important rules:
 - Include ALL three license types found: cultivators/growers/farms, processors/manufacturers/extractors/MIPs, and testing/analytical labs
 - Only include businesses actually in ${sc}
 - Aim for 20 to 100+ entries
+- Include lat and lng (decimal degree coordinates) for each business address when you can determine them
 - Return ONLY the JSON array, nothing else before or after`
 
   try {
