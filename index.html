@@ -1303,6 +1303,8 @@ async function doScrape(sc, sn, url) {
   }
   scrSt[sc] = {status:'loading'}
   renderDBList()
+  dbg(`--- Scrape started: ${sc} ---`)
+  dbg(`API key: ${apiKey.slice(0,8)}...${apiKey.slice(-4)}`)
 
   const prompt = `Search the web for cannabis businesses currently licensed in ${sn} (${sc}). Use the official state cannabis authority database at ${url} and any other official government sources.
 
@@ -1311,7 +1313,7 @@ Return ONLY a JSON array — no markdown, no preamble, no explanation, no backti
 
 Important rules:
 - entityType must be EXACTLY one of: "cultivator", "processor", or "testing_lab"
-- licenseStatus must be EXACTLY one of: "active", "pending", "expired", or "unknown"  
+- licenseStatus must be EXACTLY one of: "active", "pending", "expired", or "unknown"
 - Include ALL three license types found: cultivators/growers/farms, processors/manufacturers/extractors/MIPs, and testing/analytical labs
 - Only include businesses actually in ${sc}
 - Aim for 20 to 100+ entries
@@ -1319,6 +1321,7 @@ Important rules:
 - Return ONLY the JSON array, nothing else before or after`
 
   try {
+    dbg(`Calling Anthropic API with model claude-sonnet-4-6…`)
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
       headers:{
@@ -1328,20 +1331,46 @@ Important rules:
         'anthropic-dangerous-direct-browser-access':'true'
       },
       body: JSON.stringify({
-        model:'claude-sonnet-4-20250514',
+        model:'claude-sonnet-4-6',
         max_tokens:5000,
         tools:[{type:'web_search_20250305',name:'web_search'}],
         messages:[{role:'user',content:prompt}]
       })
     })
+
+    dbg(`API response status: ${res.status} ${res.statusText}`)
+
+    if(!res.ok) {
+      let errMsg = `API returned ${res.status}`
+      try {
+        const errData = await res.json()
+        errMsg = errData?.error?.message || errData?.message || errMsg
+      } catch(e) {
+        const txt = await res.text().catch(()=>'')
+        errMsg += txt ? `: ${txt.slice(0,120)}` : ''
+      }
+      dbg(`API error: ${errMsg}`)
+      throw new Error(errMsg)
+    }
+
     const data = await res.json()
-    if(data.error) throw new Error(data.error.message)
+    dbg(`Response parsed. Content blocks: ${(data.content||[]).length}`)
+    if(data.error) throw new Error(data.error.message || JSON.stringify(data.error))
 
     const txt = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('')
+    dbg(`Text content length: ${txt.length} chars`)
+    dbg(`First 200 chars: ${txt.slice(0,200)}`)
+
     const m = txt.match(/\[[\s\S]*\]/)
     if(!m) throw new Error('No JSON array found in response')
-    let parsed; try { parsed = JSON.parse(m[0]) } catch(e) { throw new Error('JSON parse failed: '+e.message) }
+    dbg(`JSON array found, length: ${m[0].length} chars`)
+
+    let parsed
+    try { parsed = JSON.parse(m[0]) }
+    catch(e) { throw new Error('JSON parse failed: '+e.message) }
+
     if(!Array.isArray(parsed) || !parsed.length) throw new Error('Empty or invalid array returned')
+    dbg(`Parsed ${parsed.length} records`)
 
     const mapped = parsed.map(p => ({
       businessName: (p.businessName||p.name||'').trim(),
@@ -1359,9 +1388,10 @@ Important rules:
     })).filter(p => p.businessName)
 
     const added = addProspects(mapped)
+    dbg(`Added ${added} new records for ${sc}`)
     scrSt[sc] = {status:'done', count:added}
   } catch(err) {
-    console.error('Scrape error:', err)
+    dbg(`--- Scrape FAILED: ${err.message} ---`)
     scrSt[sc] = {status:'error', msg:err.message}
   }
   renderDBList()
@@ -1430,7 +1460,7 @@ If you cannot determine the type from the name alone, use "other" with confidenc
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
       body: JSON.stringify({
-        model:'claude-sonnet-4-20250514', max_tokens:3000,
+        model:'claude-sonnet-4-6', max_tokens:3000,
         tools:[{type:'web_search_20250305',name:'web_search'}],
         messages:[{role:'user',content:prompt}]
       })
