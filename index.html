@@ -211,6 +211,7 @@ textarea:focus{border-color:var(--accent)}
     <input type="text" id="ghGistId" placeholder="Gist ID (share with teammates)" style="width:210px" oninput="ghGistChanged()">
     <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" id="ghCreateBtn" onclick="createGist()" style="display:none">&#43; Create shared DB</button>
     <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" id="ghSyncBtn" onclick="syncNow()" style="display:none">&#8645; Sync now</button>
+    <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" id="ghPushBtn" onclick="forcePush()" style="display:none" title="Overwrite remote with your local data">&#8593; Push local data</button>
     <span id="syncStatus" style="color:var(--muted)"><span class="sync-dot sync-idle"></span>Not connected</span>
     <span style="color:var(--muted);font-size:11px;margin-left:auto">Token needs <strong>gist</strong> scope only &mdash; <a href="https://github.com/settings/tokens/new?scopes=gist&description=CLEANTheory+Prospects" target="_blank" style="color:var(--accent)">create one here</a></span>
   </div>
@@ -577,16 +578,37 @@ function updateSyncUI() {
   const gistId = getGhGistId()
   const createBtn = document.getElementById('ghCreateBtn')
   const syncBtn   = document.getElementById('ghSyncBtn')
+  const pushBtn   = document.getElementById('ghPushBtn')
   if(!token) {
     createBtn.style.display = 'none'
     syncBtn.style.display   = 'none'
+    pushBtn.style.display   = 'none'
   } else if(!gistId) {
     createBtn.style.display = ''
     syncBtn.style.display   = 'none'
+    pushBtn.style.display   = 'none'
   } else {
     createBtn.style.display = 'none'
     syncBtn.style.display   = ''
+    pushBtn.style.display   = ''
   }
+}
+
+async function forcePush() {
+  const token  = getGhToken()
+  const gistId = getGhGistId()
+  if(!token || !gistId) return
+  if(!confirm('This will overwrite the remote Gist with your current local data. Continue?')) return
+  isSyncing = true
+  setSyncStatus('idle', 'Uploading local data…')
+  try {
+    await gistRequest('PATCH', gistId, { files:{ [GIST_FILENAME]:{ content: buildGistPayload().files[GIST_FILENAME].content } } })
+    const t = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
+    setSyncStatus('ok', `&#10003; Local data pushed at ${t}`)
+  } catch(err) {
+    setSyncStatus('err', `&#9888; Push failed: ${err.message}`)
+  }
+  isSyncing = false
 }
 
 function setSyncStatus(type, msg) {
@@ -646,7 +668,7 @@ async function saveToGist() {
   isSyncing = true
   setSyncStatus('idle', 'Saving…')
   try {
-    await gistRequest('PATCH', gistId, { files:{ [GIST_FILENAME]:{ content: JSON.stringify(buildGistPayload().files[GIST_FILENAME].content) } } })
+    await gistRequest('PATCH', gistId, { files:{ [GIST_FILENAME]:{ content: buildGistPayload().files[GIST_FILENAME].content } } })
     const t = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
     setSyncStatus('ok', `&#10003; Saved at ${t}`)
   } catch(err) {
@@ -667,7 +689,15 @@ async function syncNow() {
     if(res === null) { setSyncStatus('ok', '&#10003; Already up to date'); isSyncing = false; return }
     const raw  = res.files?.[GIST_FILENAME]?.content
     if(!raw) throw new Error('Shared database file not found in Gist')
-    const data = JSON.parse(raw)
+    let data = JSON.parse(raw)
+    // Safety: handle double-encoded JSON (a previous bug would stringify twice)
+    if(typeof data === 'string') {
+      data = JSON.parse(data)
+    }
+    // If data has no prospects key, it might be a raw array (very old format)
+    if(Array.isArray(data)) {
+      data = { prospects: data, uploadLog: [] }
+    }
     const remoteProspects = data.prospects || (Array.isArray(data) ? data : [])
     const remoteLog       = data.uploadLog || []
 
