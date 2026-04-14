@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CLEANTheory — Prospect Intelligence</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Duplet:wght@400;600;700;800&family=Syne:wght@700;800&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -16,36 +16,36 @@
   --green-bg:rgba(34,197,94,.12);--blue-bg:rgba(59,130,246,.12);
   --amber-bg:rgba(245,158,11,.12);--red-bg:rgba(239,68,68,.12);--purple-bg:rgba(168,85,247,.12);
 }
-html,body{height:100%;font-family:'IBM Plex Mono',monospace;background:var(--bg);color:var(--text);font-size:13px}
+html,body{height:100%;font-family:'IBM Plex Mono',monospace;background:var(--bg);color:var(--text);font-size:15px}
 .app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
 
 /* Top bar */
-.topbar{background:#0d1117;border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;gap:14px;height:50px;flex-shrink:0}
-.logo{font-family:'Syne',sans-serif;font-size:17px;font-weight:800;letter-spacing:-.3px;white-space:nowrap}
+.topbar{background:#0d1117;border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;gap:14px;height:56px;flex-shrink:0}
+.logo{font-family:'Syne',sans-serif;font-size:19px;font-weight:800;letter-spacing:-.3px;white-space:nowrap}
 .logo em{color:var(--accent);font-style:normal}
 .topbar-mid{flex:1;display:flex;justify-content:center}
 .tab-nav{display:flex;gap:2px;background:var(--surface2);border-radius:6px;padding:3px}
-.tab-btn{padding:5px 16px;border-radius:4px;border:none;background:none;color:var(--muted);font-family:inherit;font-size:12px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.tab-btn{padding:6px 18px;border-radius:4px;border:none;background:none;color:var(--muted);font-family:inherit;font-size:14px;cursor:pointer;transition:all .15s;white-space:nowrap}
 .tab-btn.on{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .topbar-right{display:flex;align-items:center;gap:8px}
 
 /* API key bar */
-.keybar{background:#0b1120;border-bottom:1px solid var(--border);padding:8px 20px;display:flex;align-items:center;gap:10px;font-size:12px;flex-shrink:0}
+.keybar{background:#0b1120;border-bottom:1px solid var(--border);padding:9px 20px;display:flex;align-items:center;gap:10px;font-size:14px;flex-shrink:0}
 .keybar label{color:var(--muted);white-space:nowrap;flex-shrink:0}
-.keybar input{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:4px;font-family:inherit;font-size:12px;width:320px;outline:none;letter-spacing:.03em}
+.keybar input{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:4px;font-family:inherit;font-size:14px;width:340px;outline:none;letter-spacing:.03em}
 .keybar input:focus{border-color:var(--accent)}
-.keybar .hint{font-size:11px;color:var(--muted);flex-shrink:0}
+.keybar .hint{font-size:12px;color:var(--muted);flex-shrink:0}
 .keybar .hint a{color:var(--accent);text-decoration:none}
-.key-ok{color:var(--green);font-size:11px;flex-shrink:0}
+.key-ok{color:var(--green);font-size:12px;flex-shrink:0}
 
 /* Stats */
 .stats-wrap{padding:16px 20px 0}
 .stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px}
-.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:11px 14px}
-.stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
-.stat-value{font-size:22px;font-weight:500}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px 16px}
+.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+.stat-value{font-size:26px;font-weight:500}
 .state-pills{display:flex;flex-wrap:wrap;gap:5px;padding:0 20px 12px}
-.spill{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:2px 9px;font-size:11px;display:flex;gap:6px}
+.spill{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:3px 10px;font-size:13px;display:flex;gap:6px}
 .spill b{color:var(--accent)}
 .spill span{color:var(--muted)}
 
@@ -53,28 +53,28 @@ html,body{height:100%;font-family:'IBM Plex Mono',monospace;background:var(--bg)
 .pane{flex:1;overflow:auto;padding:16px 20px}
 
 /* Filters */
-.filters{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
 .filters input,.filters select{
   background:var(--surface);border:1px solid var(--border);color:var(--text);
-  padding:6px 10px;border-radius:4px;font-family:inherit;font-size:12px;outline:none
+  padding:7px 11px;border-radius:4px;font-family:inherit;font-size:14px;outline:none
 }
 .filters input:focus,.filters select:focus{border-color:var(--accent)}
 .filters select option{background:#111827}
-.rc{font-size:11px;color:var(--muted)}
+.rc{font-size:13px;color:var(--muted)}
 
 /* Table */
 .tbl-wrap{border:1px solid var(--border);border-radius:6px;overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:12px}
-th{text-align:left;padding:8px 12px;background:var(--surface);color:var(--muted);font-weight:500;
-   font-size:10px;letter-spacing:.05em;text-transform:uppercase;border-bottom:1px solid var(--border);
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;padding:9px 14px;background:var(--surface);color:var(--muted);font-weight:500;
+   font-size:11px;letter-spacing:.05em;text-transform:uppercase;border-bottom:1px solid var(--border);
    cursor:pointer;white-space:nowrap;user-select:none;position:sticky;top:0;z-index:1}
 th:hover{color:var(--text)}
-td{padding:7px 12px;border-bottom:1px solid rgba(30,58,95,.4);vertical-align:middle}
+td{padding:9px 14px;border-bottom:1px solid rgba(30,58,95,.4);vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:var(--surface)}
 
 /* Badges */
-.bg{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+.bg{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;white-space:nowrap}
 .bg-cul{background:var(--green-bg);color:var(--green)}
 .bg-pro{background:var(--blue-bg);color:var(--blue)}
 .bg-lab{background:var(--purple-bg);color:var(--purple)}
@@ -85,47 +85,47 @@ tr:hover td{background:var(--surface)}
 
 /* Score */
 .sc-wrap{display:flex;align-items:center;gap:7px}
-.sc-num{min-width:24px;font-weight:500}
-.sc-bar{width:44px;height:3px;background:var(--surface2);border-radius:2px;overflow:hidden}
+.sc-num{min-width:28px;font-weight:500}
+.sc-bar{width:48px;height:4px;background:var(--surface2);border-radius:2px;overflow:hidden}
 .sc-fill{height:100%;border-radius:2px}
 
 /* Buttons */
-.btn{padding:6px 14px;border-radius:4px;font-family:inherit;font-size:12px;cursor:pointer;border:1px solid;transition:all .15s;white-space:nowrap}
+.btn{padding:7px 16px;border-radius:4px;font-family:inherit;font-size:14px;cursor:pointer;border:1px solid;transition:all .15s;white-space:nowrap}
 .btn-primary{background:var(--accent);color:#0a0e17;border-color:var(--accent);font-weight:500}
 .btn-primary:hover{filter:brightness(1.1)}
 .btn-outline{background:none;color:var(--text);border-color:var(--border)}
 .btn-outline:hover{border-color:var(--border2);background:var(--surface)}
 .btn-danger{background:none;color:var(--red);border-color:rgba(239,68,68,.3)}
 .btn-danger:hover{background:var(--red-bg)}
-.btn-scrape{background:none;color:var(--accent);border-color:rgba(0,196,160,.4);padding:5px 12px;font-size:12px}
+.btn-scrape{background:none;color:var(--accent);border-color:rgba(0,196,160,.4);padding:6px 14px;font-size:14px}
 .btn-scrape:hover{background:rgba(0,196,160,.08)}
 .btn-scrape:disabled{opacity:.35;cursor:not-allowed}
-.btn-done{background:none;color:var(--muted2);border-color:var(--border);padding:5px 12px;font-size:12px}
+.btn-done{background:none;color:var(--muted2);border-color:var(--border);padding:6px 14px;font-size:14px}
 .btn-done:hover{border-color:var(--border2)}
 
 /* Import */
-.import-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px 20px;margin-bottom:12px}
-.import-title{font-size:13px;font-weight:500;margin-bottom:6px}
-.import-hint{font-size:12px;color:var(--muted2);margin-bottom:12px;line-height:1.75}
-.import-hint code{background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:11px}
-.status-ok{color:var(--green);font-size:12px;margin-left:8px}
-.status-err{color:var(--red);font-size:12px;margin-left:8px}
+.import-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px 22px;margin-bottom:14px}
+.import-title{font-size:15px;font-weight:500;margin-bottom:7px}
+.import-hint{font-size:14px;color:var(--muted2);margin-bottom:14px;line-height:1.75}
+.import-hint code{background:var(--surface2);padding:1px 6px;border-radius:3px;font-size:13px}
+.status-ok{color:var(--green);font-size:14px;margin-left:8px}
+.status-err{color:var(--red);font-size:14px;margin-left:8px}
 
 /* DB rows */
-.db-row{display:flex;align-items:center;gap:12px;padding:11px 14px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;transition:border-color .15s}
+.db-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;transition:border-color .15s}
 .db-row:hover{border-color:var(--border2)}
-.p-dot{width:26px;height:26px;border-radius:50%;background:var(--surface2);color:var(--accent);
-       display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;
+.p-dot{width:28px;height:28px;border-radius:50%;background:var(--surface2);color:var(--accent);
+       display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;
        flex-shrink:0;border:1px solid var(--border)}
 .db-info{flex:1;min-width:0}
-.db-name{font-size:12px;font-weight:500;margin-bottom:2px}
-.db-url{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.db-name{font-size:14px;font-weight:500;margin-bottom:3px}
+.db-url{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .db-url a{color:var(--muted);text-decoration:none}
 .db-url a:hover{color:var(--accent)}
 
 /* Note boxes */
-.note{background:var(--surface);border:1px solid rgba(245,158,11,.3);border-radius:6px;padding:12px 14px;font-size:12px;color:var(--amber);line-height:1.6;margin-top:12px}
-.info{background:var(--surface);border-left:3px solid var(--accent);border-radius:0 6px 6px 0;padding:12px 14px;font-size:12px;color:var(--muted2);line-height:1.6;margin-top:10px}
+.note{background:var(--surface);border:1px solid rgba(245,158,11,.3);border-radius:6px;padding:13px 16px;font-size:14px;color:var(--amber);line-height:1.6;margin-top:12px}
+.info{background:var(--surface);border-left:3px solid var(--accent);border-radius:0 6px 6px 0;padding:13px 16px;font-size:14px;color:var(--muted2);line-height:1.6;margin-top:10px}
 
 textarea{background:var(--surface);border:1px solid var(--border);color:var(--text);
          padding:8px 12px;border-radius:4px;font-family:inherit;font-size:12px;
@@ -152,7 +152,9 @@ textarea:focus{border-color:var(--accent)}
 
   <!-- Top bar -->
   <div class="topbar">
-    <div class="logo"><em>CLEAN</em>Theory &nbsp;<span style="color:var(--muted);font-weight:300;font-size:13px">Prospect Intelligence</span></div>
+    <div style="font-family:'Duplet',sans-serif;font-size:22px;font-weight:700;white-space:nowrap;flex-shrink:0;letter-spacing:-.2px">
+      <span style="color:white">CLEAN</span><span style="color:var(--accent)">Theory</span><span style="color:var(--muted);font-size:13px;font-weight:400;margin-left:14px;font-family:'IBM Plex Mono',monospace;letter-spacing:0">Prospect Intelligence</span>
+    </div>
     <div class="topbar-mid">
       <div class="tab-nav">
         <button class="tab-btn on" onclick="showTab('list',this)">&#9776; Prospect list</button>
@@ -453,11 +455,11 @@ function render() {
       <td style="white-space:nowrap"><span style="font-weight:600;color:var(--accent)">${p.state||'?'}</span>${SP[p.state]?`<span style="font-size:10px;color:var(--muted);margin-left:3px">P${SP[p.state]}</span>`:''}</td>
       <td style="color:var(--muted2)">${p.city||''}</td>
       <td>${statusBadge(p.licenseStatus)}</td>
-      <td style="color:var(--muted);font-size:11px">${p.licenseNumber||'—'}</td>
-      <td style="color:var(--muted2);font-size:11px">${p.phone||'—'}</td>
-      <td style="color:var(--muted2);font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.email||'—'}</td>
-      <td style="color:var(--muted2);font-size:11px">${p.contactName||'—'}</td>
-      <td style="color:var(--muted);font-size:11px;white-space:nowrap">${(p.source||'').replace('state_','').toUpperCase()}</td>
+      <td style="color:var(--muted);font-size:13px">${p.licenseNumber||'—'}</td>
+      <td style="color:var(--muted2);font-size:13px">${p.phone||'—'}</td>
+      <td style="color:var(--muted2);font-size:13px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.email||'—'}</td>
+      <td style="color:var(--muted2);font-size:13px">${p.contactName||'—'}</td>
+      <td style="color:var(--muted);font-size:13px;white-space:nowrap">${(p.source||'').replace('state_','').toUpperCase()}</td>
     </tr>`).join('')}</tbody>
   </table>${rows.length>500?`<div style="text-align:center;padding:10px;font-size:12px;color:var(--muted)">Showing 500 of ${rows.length} — export to Excel to see all</div>`:''}`
 }
@@ -480,10 +482,9 @@ function renderDBList() {
     return `<div class="db-row">
       <div class="p-dot">${db.p}</div>
       <div class="db-info">
-        <div class="db-name"><span style="color:var(--accent);margin-right:8px">${db.s}</span>${db.n}</div>
-        <div class="db-url"><a href="${db.url}" target="_blank">${db.url}</a></div>
+        <div class="db-name"><span style="color:var(--accent);margin-right:8px">${db.s}</span>${db.n}</div>        <div class="db-url"><a href="${db.url}" target="_blank">${db.url}</a></div>
       </div>
-      ${cnt>0?`<span style="font-size:12px;color:var(--green);white-space:nowrap;flex-shrink:0">${cnt} imported</span>`:''}
+      ${cnt>0?`<span style="font-size:14px;color:var(--green);white-space:nowrap;flex-shrink:0">${cnt} imported</span>`:''}
       <div style="flex-shrink:0">${btnHtml}</div>
     </div>`
   }).join('')
