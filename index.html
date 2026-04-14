@@ -674,6 +674,8 @@ function saveInitials() {
   const v = (document.getElementById('uploaderInitials').value||'').toUpperCase()
   try { localStorage.setItem('ct_initials', v) } catch(e){}
 }
+
+function renderUploadLog() {
   const el = document.getElementById('uploadLog')
   if(!el) return
   let log = []
