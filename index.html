@@ -1079,7 +1079,12 @@ function renderDBList() {
   }).join('')
 }
 
-function renderAll() { renderStats(); render(); renderDBList(); renderUploadLog() }
+function renderAll() {
+  try { renderStats() }    catch(e) { console.error('renderStats error:', e) }
+  try { render() }         catch(e) { console.error('render error:', e) }
+  try { renderDBList() }   catch(e) { console.error('renderDBList error:', e) }
+  try { renderUploadLog() } catch(e) { console.error('renderUploadLog error:', e) }
+}
 
 // ─── Tab switching ────────────────────────────────────────
 function showTab(name, btn) {
@@ -1088,6 +1093,12 @@ function showTab(name, btn) {
   })
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('on'))
   btn.classList.add('on')
+  // Re-render on tab click so each pane is always fresh
+  try {
+    if(name === 'states') renderDBList()
+    if(name === 'import') renderUploadLog()
+    if(name === 'list')   render()
+  } catch(e) { console.error('Tab render error:', e) }
 }
 
 // ─── Excel import ─────────────────────────────────────────
