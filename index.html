@@ -688,8 +688,24 @@ async function syncNow() {
   try {
     const res = await gistRequest('GET', gistId)
     if(res === null) { setSyncStatus('ok', '&#10003; Already up to date'); isSyncing = false; return }
-    const raw  = res.files?.[GIST_FILENAME]?.content
-    if(!raw) throw new Error('Shared database file not found in Gist')
+    const fileInfo = res.files?.[GIST_FILENAME]
+    if(!fileInfo) throw new Error('Shared database file not found in Gist')
+
+    // GitHub truncates files over ~1MB in the standard response — fetch raw URL instead
+    let raw
+    if(fileInfo.truncated || !fileInfo.content) {
+      if(!fileInfo.raw_url) throw new Error('File truncated and no raw_url available')
+      setSyncStatus('idle', 'Fetching large dataset…')
+      const rawRes = await fetch(fileInfo.raw_url, {
+        headers: { 'Authorization': `Bearer ${getGhToken()}`, 'X-GitHub-Api-Version': '2022-11-28' }
+      })
+      if(!rawRes.ok) throw new Error(`Failed to fetch raw content: ${rawRes.status}`)
+      raw = await rawRes.text()
+    } else {
+      raw = fileInfo.content
+    }
+    if(!raw) throw new Error('Empty response from Gist')
+
     let data = JSON.parse(raw)
     // Safety: handle double-encoded JSON (a previous bug would stringify twice)
     if(typeof data === 'string') {
