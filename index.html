@@ -403,7 +403,16 @@ const CENTROIDS = {
   VT:{lat:44.0459,lng:-72.7107}, ME:{lat:45.2538,lng:-69.4455},
   NY:{lat:42.1657,lng:-74.9481}, NJ:{lat:40.0583,lng:-74.4057},
   PA:{lat:41.2033,lng:-77.1945}, MD:{lat:39.0458,lng:-76.6413},
-  VA:{lat:37.4316,lng:-78.6569}
+  VA:{lat:37.4316,lng:-78.6569}, DE:{lat:38.9108,lng:-75.5277},
+  CA:{lat:36.7783,lng:-119.4179}, NV:{lat:38.8026,lng:-116.4194},
+  OR:{lat:43.8041,lng:-120.5542}, WA:{lat:47.7511,lng:-120.7401},
+  CO:{lat:39.5501,lng:-105.7821}, AZ:{lat:34.0489,lng:-111.0937},
+  IL:{lat:40.6331,lng:-89.3985}, MI:{lat:44.3148,lng:-85.6024},
+  OH:{lat:40.4173,lng:-82.9071}, MO:{lat:37.9643,lng:-91.8318},
+  MN:{lat:46.7296,lng:-94.6859}, FL:{lat:27.7663,lng:-81.6868},
+  TX:{lat:31.9686,lng:-99.9018}, NC:{lat:35.7596,lng:-79.0193},
+  NM:{lat:34.5199,lng:-105.8701}, MT:{lat:46.8797,lng:-110.3626},
+  AK:{lat:64.2008,lng:-153.4937}, HI:{lat:19.8968,lng:-155.5828}
 }
 
 function haversine(lat1,lng1,lat2,lng2){
@@ -462,8 +471,8 @@ function calcScore(p) {
 function ntType(t) {
   t = (t||'').toLowerCase()
   if(/culti|grow|farm|plant|flower|tier\s*1|adult.use.*culti/.test(t)) return 'cultivator'
-  if(/process|manufactur|product|extract|infus|tier\s*2|mip/.test(t)) return 'processor'
-  if(/test|lab|analy|certif/.test(t)) return 'testing_lab'
+  if(/process|manufactur|product|extract|infus|tier\s*2|\bmip\b/.test(t)) return 'processor'
+  if(/\btest|\blab\b|analy|certif/.test(t)) return 'testing_lab'
   return 'cultivator'
 }
 function ntStatus(s) {
@@ -830,6 +839,17 @@ function doGM() {
   el.className = 'status-ok'
   el.textContent = `✓ Added ${added} prospects`
   document.getElementById('gm').value = ''
+  const now = new Date()
+  logUpload({
+    filename: 'Google Maps paste',
+    date: now.toLocaleDateString(),
+    time: now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),
+    uploader: getUploader(),
+    sheets: ['Maps'],
+    totalRows: parsed.length,
+    added,
+    source: 'google_maps'
+  })
 }
 
 // ─── State scraping ───────────────────────────────────────
@@ -889,6 +909,9 @@ Important rules:
       city: p.city||'', address: p.address||'',
       phone: p.phone||'', email: p.email||'',
       website: p.website||'', contactName: p.contactName||'',
+      contactTitle: p.contactTitle||'',
+      linkedIn: p.linkedIn||'',
+      lat: p.lat||null, lng: p.lng||null,
       licenseStatus: ntStatus(p.licenseStatus||''),
       source: 'state_'+sc.toLowerCase(), notes:''
     })).filter(p => p.businessName)
@@ -909,6 +932,7 @@ function exportExcel() {
   const typeLabel = t => t==='cultivator'?'Cultivator':t==='processor'?'Processor':t==='testing_lab'?'Testing lab':t||''
   const data = rows.map(p => ({
     'Priority score': p.priorityScore,
+    'Distance (mi)': p.distanceMiles != null ? p.distanceMiles + (p.distEstimated ? ' ~est' : '') : '',
     'Business name': p.businessName,
     'Type': typeLabel(p.entityType),
     'State': p.state,
@@ -916,10 +940,12 @@ function exportExcel() {
     'Address': p.address,
     'License #': p.licenseNumber,
     'Status': p.licenseStatus,
+    'Contact name': p.contactName,
+    'Contact title': p.contactTitle||'',
     'Phone': p.phone,
     'Email': p.email,
+    'LinkedIn': p.linkedIn||'',
     'Website': p.website,
-    'Contact name': p.contactName,
     'Source': p.source,
     'Notes': p.notes,
     'Date added': p.dateAdded
