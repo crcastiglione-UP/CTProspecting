@@ -212,9 +212,13 @@ textarea:focus{border-color:var(--accent)}
     <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" id="ghCreateBtn" onclick="createGist()" style="display:none">&#43; Create shared DB</button>
     <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" id="ghSyncBtn" onclick="syncNow()" style="display:none">&#8645; Sync now</button>
     <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" id="ghPushBtn" onclick="forcePush()" style="display:none" title="Overwrite remote with your local data">&#8593; Push local data</button>
+    <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" onclick="toggleDebug()" title="Show sync diagnostics">&#9881; Debug</button>
     <span id="syncStatus" style="color:var(--muted)"><span class="sync-dot sync-idle"></span>Not connected</span>
     <span style="color:var(--muted);font-size:11px;margin-left:auto">Token needs <strong>gist</strong> scope only &mdash; <a href="https://github.com/settings/tokens/new?scopes=gist&description=CLEANTheory+Prospects" target="_blank" style="color:var(--accent)">create one here</a></span>
   </div>
+
+  <!-- Debug panel -->
+  <div id="debugPanel" style="display:none;background:#1a1a2e;color:#e2e8f0;font-family:monospace;font-size:12px;padding:12px 20px;border-bottom:1px solid #333;max-height:200px;overflow-y:auto;white-space:pre-wrap;line-height:1.6">Sync debug log will appear here after clicking Sync now.</div>
 
   <!-- Stats (always visible) -->
   <div class="stats-wrap">
@@ -553,7 +557,23 @@ function load() {
   try { prospects = JSON.parse(localStorage.getItem('ct_prospects')||'[]') } catch(e){ prospects = [] }
 }
 
-// ─── GitHub Gist Sync ────────────────────────────────────
+// ─── Debug panel ─────────────────────────────────────────
+let debugLines = []
+function dbg(msg) {
+  const t = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})
+  debugLines.push(`[${t}] ${msg}`)
+  if(debugLines.length > 100) debugLines.shift()
+  const el = document.getElementById('debugPanel')
+  if(el && el.style.display !== 'none') el.textContent = debugLines.join('\n')
+  console.log('[CT Debug]', msg)
+}
+function toggleDebug() {
+  const el = document.getElementById('debugPanel')
+  el.style.display = el.style.display === 'none' ? '' : 'none'
+  if(el.style.display !== 'none') el.textContent = debugLines.length ? debugLines.join('\n') : 'No sync activity yet — click Sync now.'
+}
+
+
 const GIST_FILENAME = 'ct_prospects.json'
 let gistSaveTimer = null
 let lastGistEtag = null
@@ -683,60 +703,83 @@ async function syncNow() {
   if(!token || !gistId) { alert('Enter your GitHub token and Gist ID first.'); return }
   if(isSyncing) return
   isSyncing = true
-  lastGistEtag = null  // always fetch fresh — don't rely on cache
+  lastGistEtag = null
   setSyncStatus('idle', 'Syncing…')
+  dbg('--- Sync started ---')
+  dbg(`Gist ID: ${gistId}`)
+  dbg(`Token: ${token.slice(0,8)}...${token.slice(-4)}`)
   try {
+    dbg('Calling GitHub Gist API…')
     const res = await gistRequest('GET', gistId)
-    if(res === null) { setSyncStatus('ok', '&#10003; Already up to date'); isSyncing = false; return }
-    const fileInfo = res.files?.[GIST_FILENAME]
-    if(!fileInfo) throw new Error('Shared database file not found in Gist')
+    if(res === null) {
+      dbg('304 Not Modified — already up to date')
+      setSyncStatus('ok', '&#10003; Already up to date')
+      isSyncing = false
+      return
+    }
+    dbg(`Response OK. Files in Gist: ${Object.keys(res.files||{}).join(', ')}`)
 
-    // GitHub truncates files over ~1MB in the standard response — fetch raw URL instead
+    const fileInfo = res.files?.[GIST_FILENAME]
+    if(!fileInfo) {
+      dbg(`ERROR: "${GIST_FILENAME}" not found. Files present: ${Object.keys(res.files||{}).join(', ')}`)
+      throw new Error(`File "${GIST_FILENAME}" not found in Gist`)
+    }
+    dbg(`File found. Size: ${fileInfo.size} bytes, Truncated: ${fileInfo.truncated}, Has inline content: ${!!fileInfo.content}`)
+
     let raw
     if(fileInfo.truncated || !fileInfo.content) {
+      dbg(`Fetching from raw_url: ${fileInfo.raw_url}`)
       if(!fileInfo.raw_url) throw new Error('File truncated and no raw_url available')
       setSyncStatus('idle', 'Fetching large dataset…')
       const rawRes = await fetch(fileInfo.raw_url, {
-        headers: { 'Authorization': `Bearer ${getGhToken()}`, 'X-GitHub-Api-Version': '2022-11-28' }
+        headers: { 'Authorization': `Bearer ${token}`, 'X-GitHub-Api-Version': '2022-11-28' }
       })
-      if(!rawRes.ok) throw new Error(`Failed to fetch raw content: ${rawRes.status}`)
+      dbg(`Raw URL response: ${rawRes.status} ${rawRes.statusText}`)
+      if(!rawRes.ok) throw new Error(`Raw fetch failed: ${rawRes.status}`)
       raw = await rawRes.text()
     } else {
       raw = fileInfo.content
     }
-    if(!raw) throw new Error('Empty response from Gist')
 
-    let data = JSON.parse(raw)
-    // Safety: handle double-encoded JSON (a previous bug would stringify twice)
+    dbg(`Raw content length: ${raw?.length ?? 'null'} chars`)
+    dbg(`First 300 chars: ${(raw||'').slice(0,300)}`)
+
+    if(!raw) throw new Error('Empty content received from Gist')
+
+    let data
+    try {
+      data = JSON.parse(raw)
+      dbg(`JSON.parse OK. Result type: ${typeof data}, isArray: ${Array.isArray(data)}`)
+    } catch(e) {
+      dbg(`JSON.parse FAILED: ${e.message}`)
+      dbg(`Problematic content: ${raw.slice(0,400)}`)
+      throw new Error(`JSON parse failed: ${e.message}`)
+    }
+
     if(typeof data === 'string') {
-      data = JSON.parse(data)
+      dbg('Double-encoded string — parsing again…')
+      try { data = JSON.parse(data); dbg('Second parse OK') }
+      catch(e) { dbg(`Second parse failed: ${e.message}`); throw new Error('Double-encoded JSON failed') }
     }
-    // If data has no prospects key, it might be a raw array (very old format)
-    if(Array.isArray(data)) {
-      data = { prospects: data, uploadLog: [] }
-    }
-    const remoteProspects = data.prospects || (Array.isArray(data) ? data : [])
-    const remoteLog       = data.uploadLog || []
+    if(Array.isArray(data)) { dbg('Wrapping array in object'); data = { prospects: data, uploadLog: [] } }
 
-    // Merge: keep all unique records from both local and remote
+    const remoteProspects = data.prospects || []
+    const remoteLog       = data.uploadLog  || []
+    dbg(`Remote records: ${remoteProspects.length}, Remote log entries: ${remoteLog.length}`)
+    dbg(`Last saved by: ${data.lastUpdatedBy||'?'} at ${data.lastUpdated||'?'}`)
+
     const key = p => ((p.businessName||'').toLowerCase().trim()+'|'+(p.contactName||'').toLowerCase().trim()+'|'+(p.state||'').toUpperCase())
     const localKeys = new Set(prospects.map(key))
     let added = 0
     for(const p of remoteProspects) {
-      if(!localKeys.has(key(p))) {
-        prospects.push(p)
-        localKeys.add(key(p))
-        added++
-      } else {
-        // Remote version wins for challenged/corrected records
+      if(!localKeys.has(key(p))) { prospects.push(p); localKeys.add(key(p)); added++ }
+      else {
         const local = prospects.find(lp => key(lp)===key(p))
-        if(local && p.challenged && !local.challenged) {
-          Object.assign(local, {entityType:p.entityType, challenged:p.challenged, classConfidence:p.classConfidence, challengeNote:p.challengeNote})
-        }
+        if(local && p.challenged && !local.challenged) Object.assign(local, {entityType:p.entityType,challenged:p.challenged,classConfidence:p.classConfidence,challengeNote:p.challengeNote})
       }
     }
+    dbg(`Merge complete. Added ${added} new records.`)
 
-    // Merge upload logs (dedupe by filename+date)
     const logKey = e => (e.filename||'')+(e.date||'')+(e.time||'')
     const localLogKeys = new Set()
     let log = []
@@ -748,11 +791,13 @@ async function syncNow() {
 
     save()
     renderAll()
-    const who   = data.lastUpdatedBy || '?'
-    const when  = data.lastUpdated ? new Date(data.lastUpdated).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '?'
-    const t     = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
-    setSyncStatus('ok', `&#10003; Synced at ${t} &nbsp;·&nbsp; ${added} new records from remote &nbsp;·&nbsp; Last saved by <strong>${who}</strong> at ${when}`)
+    const who  = data.lastUpdatedBy || '?'
+    const when = data.lastUpdated ? new Date(data.lastUpdated).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '?'
+    const t    = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
+    setSyncStatus('ok', `&#10003; Synced at ${t} &nbsp;·&nbsp; ${added} new records &nbsp;·&nbsp; Last saved by <strong>${who}</strong> at ${when}`)
+    dbg(`--- Sync complete. ${added} new records. ---`)
   } catch(err) {
+    dbg(`--- Sync FAILED: ${err.message} ---`)
     setSyncStatus('err', `&#9888; Sync failed: ${err.message}`)
   }
   isSyncing = false
