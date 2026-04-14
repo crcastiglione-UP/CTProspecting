@@ -145,6 +145,33 @@ textarea:focus{border-color:var(--accent)}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+
+/* Confidence + challenge */
+.conf-high{background:rgba(22,163,74,.1);color:var(--green);padding:2px 7px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap;display:inline-block}
+.conf-med{background:rgba(217,119,6,.1);color:var(--amber);padding:2px 7px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap;display:inline-block}
+.conf-low{background:var(--surface2);color:var(--muted);padding:2px 7px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap;display:inline-block}
+.conf-corr{background:rgba(37,99,235,.1);color:var(--blue);padding:2px 7px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap;display:inline-block}
+.btn-ch{background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:2px 6px;border-radius:3px;font-family:inherit;opacity:.7}
+.btn-ch:hover{background:var(--surface2);color:var(--text);opacity:1}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:3px}
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9999;align-items:center;justify-content:center}
+.modal-ov.open{display:flex}
+.modal-box{background:#fff;border-radius:10px;padding:24px;max-width:460px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.modal-box h3{font-size:15px;font-weight:600;margin-bottom:4px}
+.modal-lbl{font-size:13px;color:var(--muted);margin:12px 0 4px}
+.modal-box select,.modal-box input[type=text]{width:100%;font-size:14px;padding:7px 10px;border:1px solid var(--border);border-radius:4px;font-family:inherit;outline:none}
+.modal-box select:focus,.modal-box input[type=text]:focus{border-color:var(--accent)}
+.modal-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.rebatch-bar{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#fffbeb;border:1px solid rgba(217,119,6,.25);border-radius:6px;margin-bottom:12px;font-size:13px;color:#92400e}
+.syncbar{background:#f8fafc;border-bottom:1px solid var(--border);padding:8px 20px;display:flex;align-items:center;gap:10px;font-size:12px;flex-shrink:0;flex-wrap:wrap}
+.syncbar label{color:var(--muted);white-space:nowrap;flex-shrink:0}
+.syncbar input{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:4px;font-family:inherit;font-size:12px;outline:none}
+.syncbar input:focus{border-color:var(--accent)}
+.sync-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}
+.sync-ok{background:var(--green)}
+.sync-warn{background:var(--amber)}
+.sync-err{background:var(--red)}
+.sync-idle{background:var(--muted)}
 </style>
 </head>
 <body>
@@ -177,17 +204,74 @@ textarea:focus{border-color:var(--accent)}
     <span class="hint">Required for scraping &mdash; get one free at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></span>
   </div>
 
+  <!-- GitHub Gist Sync bar -->
+  <div class="syncbar" id="syncbar">
+    <label>GitHub sync</label>
+    <input type="password" id="ghToken" placeholder="GitHub Personal Access Token (gist scope)" style="width:290px" oninput="ghTokenChanged()">
+    <input type="text" id="ghGistId" placeholder="Gist ID (share with teammates)" style="width:210px" oninput="ghGistChanged()">
+    <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" id="ghCreateBtn" onclick="createGist()" style="display:none">&#43; Create shared DB</button>
+    <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" id="ghSyncBtn" onclick="syncNow()" style="display:none">&#8645; Sync now</button>
+    <span id="syncStatus" style="color:var(--muted)"><span class="sync-dot sync-idle"></span>Not connected</span>
+    <span style="color:var(--muted);font-size:11px;margin-left:auto">Token needs <strong>gist</strong> scope only &mdash; <a href="https://github.com/settings/tokens/new?scopes=gist&description=CLEANTheory+Prospects" target="_blank" style="color:var(--accent)">create one here</a></span>
+  </div>
+
   <!-- Stats (always visible) -->
   <div class="stats-wrap">
     <div class="stats-grid" id="stats">
-      <div class="stat-card"><div class="stat-label">Total prospects</div><div class="stat-value" style="color:var(--accent)" id="s-total">0</div></div>
-      <div class="stat-card"><div class="stat-label">Cultivators</div><div class="stat-value" style="color:var(--green)" id="s-cul">0</div></div>
-      <div class="stat-card"><div class="stat-label">Processors</div><div class="stat-value" style="color:var(--blue)" id="s-pro">0</div></div>
-      <div class="stat-card"><div class="stat-label">Testing labs</div><div class="stat-value" style="color:var(--purple)" id="s-lab">0</div></div>
-      <div class="stat-card"><div class="stat-label">Active licenses</div><div class="stat-value" style="color:var(--green)" id="s-act">0</div></div>
+      <div class="stat-card">
+        <div class="stat-label">Companies</div>
+        <div class="stat-value" style="color:var(--accent)" id="s-companies">0</div>
+        <div class="stat-sub" id="s-contacts-sub">0 individual contacts</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Emails on file</div>
+        <div class="stat-value" style="color:var(--text)" id="s-emails">0</div>
+        <div class="stat-sub" id="s-phones-sub">0 with phone</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Active licenses</div>
+        <div class="stat-value" style="color:var(--green)" id="s-act">0</div>
+        <div class="stat-sub">confirmed from state data</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Needs review</div>
+        <div class="stat-value" style="color:var(--amber)" id="s-review">0</div>
+        <div class="stat-sub">low-confidence type</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Challenged</div>
+        <div class="stat-value" style="color:var(--blue)" id="s-challenged">0</div>
+        <div class="stat-sub">manually corrected</div>
+      </div>
     </div>
+    <!-- Type breakdown row -->
+    <div id="type-row" style="display:flex;gap:20px;padding:0 20px 10px;font-size:13px;flex-wrap:wrap"></div>
   </div>
   <div class="state-pills" id="spills"></div>
+
+  <!-- Challenge modal -->
+  <div class="modal-ov" id="challengeModal">
+    <div class="modal-box">
+      <h3>&#9873; Challenge classification</h3>
+      <div id="modal-company" style="font-size:13px;color:var(--muted);margin-top:3px"></div>
+      <div class="modal-lbl">Current classification</div>
+      <div id="modal-current" style="font-size:14px;font-weight:500"></div>
+      <div class="modal-lbl">Correct type</div>
+      <select id="challengeType">
+        <option value="cultivator">Cultivator (grower / farm)</option>
+        <option value="processor">Processor (extractor / manufacturer)</option>
+        <option value="testing_lab">Testing lab (analytical)</option>
+        <option value="dispensary">Dispensary / retail only</option>
+        <option value="other">Other / unknown</option>
+      </select>
+      <div class="modal-lbl">Note <span style="color:var(--muted);font-weight:400">(optional — why are you changing this?)</span></div>
+      <input type="text" id="challengeNote" placeholder="e.g. Checked their website — extraction only, no cultivation">
+      <div class="modal-acts">
+        <button class="btn btn-outline" onclick="closeChallenge()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveChallenge()">Save correction</button>
+      </div>
+    </div>
+  </div>
 
   <!-- PANE: Prospect List -->
   <div class="pane" id="pane-list">
@@ -212,6 +296,8 @@ textarea:focus{border-color:var(--accent)}
         <option value="cultivator">Cultivators</option>
         <option value="processor">Processors</option>
         <option value="testing_lab">Testing labs</option>
+        <option value="dispensary">Dispensaries</option>
+        <option value="other">Other</option>
       </select>
       <select id="fst" onchange="render()">
         <option value="">All statuses</option>
@@ -219,6 +305,13 @@ textarea:focus{border-color:var(--accent)}
         <option value="pending">Pending</option>
         <option value="expired">Expired</option>
         <option value="unknown">Unknown</option>
+      </select>
+      <select id="fc" onchange="render()">
+        <option value="">All confidence</option>
+        <option value="high">Confirmed</option>
+        <option value="medium">Likely</option>
+        <option value="low">Guessed</option>
+        <option value="challenged">Corrected</option>
       </select>
       <select id="fr" onchange="render()" title="Distance from Easthampton, MA">
         <option value="">Any distance</option>
@@ -229,8 +322,14 @@ textarea:focus{border-color:var(--accent)}
         <option value="300">Within 300 mi</option>
         <option value="500">Within 500 mi</option>
       </select>
-      <span style="font-size:12px;color:var(--muted)" title="Distance measured from Easthampton, MA">&#8982; from Easthampton, MA</span>
+      <span style="font-size:12px;color:var(--muted)">&#8982; Easthampton, MA</span>
       <span class="rc" id="rc"></span>
+    </div>
+    <div id="rebatch-bar" style="display:none" class="rebatch-bar">
+      <span id="rebatch-count"></span>
+      <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" onclick="batchReclassify()">&#9889; Reclassify with AI</button>
+      <span style="font-size:12px;color:#b45309">Uses Claude web search to look up each company and correct their type.</span>
+      <span id="rebatch-status" style="font-size:12px;margin-left:auto"></span>
     </div>
     <div class="tbl-wrap" id="tbl"></div>
   </div>
@@ -447,9 +546,169 @@ let scrSt = {}
 // ─── Persistence ────────────────────────────────────────
 function save() {
   try { localStorage.setItem('ct_prospects', JSON.stringify(prospects)) } catch(e){}
+  scheduleGistSave()
 }
 function load() {
   try { prospects = JSON.parse(localStorage.getItem('ct_prospects')||'[]') } catch(e){ prospects = [] }
+}
+
+// ─── GitHub Gist Sync ────────────────────────────────────
+const GIST_FILENAME = 'ct_prospects.json'
+let gistSaveTimer = null
+let lastGistEtag = null
+let isSyncing = false
+
+function getGhToken()  { return (document.getElementById('ghToken')?.value||'').trim() || (localStorage.getItem('ct_ghtoken')||'') }
+function getGhGistId() { return (document.getElementById('ghGistId')?.value||'').trim() || (localStorage.getItem('ct_gistid')||'') }
+
+function ghTokenChanged() {
+  const t = document.getElementById('ghToken').value.trim()
+  try { localStorage.setItem('ct_ghtoken', t) } catch(e){}
+  updateSyncUI()
+}
+function ghGistChanged() {
+  const g = document.getElementById('ghGistId').value.trim()
+  try { localStorage.setItem('ct_gistid', g) } catch(e){}
+  updateSyncUI()
+}
+
+function updateSyncUI() {
+  const token  = getGhToken()
+  const gistId = getGhGistId()
+  const createBtn = document.getElementById('ghCreateBtn')
+  const syncBtn   = document.getElementById('ghSyncBtn')
+  if(!token) {
+    createBtn.style.display = 'none'
+    syncBtn.style.display   = 'none'
+  } else if(!gistId) {
+    createBtn.style.display = ''
+    syncBtn.style.display   = 'none'
+  } else {
+    createBtn.style.display = 'none'
+    syncBtn.style.display   = ''
+  }
+}
+
+function setSyncStatus(type, msg) {
+  const el = document.getElementById('syncStatus')
+  if(!el) return
+  const dotClass = type==='ok'?'sync-ok':type==='warn'?'sync-warn':type==='err'?'sync-err':'sync-idle'
+  el.innerHTML = `<span class="sync-dot ${dotClass}"></span>${msg}`
+}
+
+async function gistRequest(method, gistId, body) {
+  const token = getGhToken()
+  const url   = gistId ? `https://api.github.com/gists/${gistId}` : 'https://api.github.com/gists'
+  const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28' }
+  if(lastGistEtag && method==='GET') headers['If-None-Match'] = lastGistEtag
+  const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined })
+  if(res.status === 304) return null // not modified
+  if(!res.ok) throw new Error(`GitHub API ${res.status}: ${await res.text()}`)
+  if(res.headers.get('ETag')) lastGistEtag = res.headers.get('ETag')
+  return res.json()
+}
+
+function buildGistPayload() {
+  let log = []
+  try { log = JSON.parse(localStorage.getItem('ct_uploadlog')||'[]') } catch(e){}
+  const data = { version:1, lastUpdated: new Date().toISOString(), lastUpdatedBy: (localStorage.getItem('ct_initials')||'?'), prospects, uploadLog: log }
+  return { description:'CLEANTheory Prospect Intelligence — Shared Database', public:false, files:{ [GIST_FILENAME]:{ content: JSON.stringify(data) } } }
+}
+
+async function createGist() {
+  const token = getGhToken()
+  if(!token) { alert('Enter your GitHub Personal Access Token first.'); return }
+  setSyncStatus('idle', 'Creating shared database…')
+  try {
+    const res = await gistRequest('POST', null, buildGistPayload())
+    const gistId = res.id
+    document.getElementById('ghGistId').value = gistId
+    try { localStorage.setItem('ct_gistid', gistId) } catch(e){}
+    updateSyncUI()
+    setSyncStatus('ok', `&#10003; Created &nbsp;·&nbsp; Share Gist ID: <strong style="user-select:all">${gistId}</strong>`)
+  } catch(err) {
+    setSyncStatus('err', `&#9888; ${err.message}`)
+  }
+}
+
+function scheduleGistSave() {
+  const token  = getGhToken()
+  const gistId = getGhGistId()
+  if(!token || !gistId) return
+  clearTimeout(gistSaveTimer)
+  gistSaveTimer = setTimeout(saveToGist, 2000)
+}
+
+async function saveToGist() {
+  const token  = getGhToken()
+  const gistId = getGhGistId()
+  if(!token || !gistId || isSyncing) return
+  isSyncing = true
+  setSyncStatus('idle', 'Saving…')
+  try {
+    await gistRequest('PATCH', gistId, { files:{ [GIST_FILENAME]:{ content: JSON.stringify(buildGistPayload().files[GIST_FILENAME].content) } } })
+    const t = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
+    setSyncStatus('ok', `&#10003; Saved at ${t}`)
+  } catch(err) {
+    setSyncStatus('err', `&#9888; Save failed: ${err.message}`)
+  }
+  isSyncing = false
+}
+
+async function syncNow() {
+  const token  = getGhToken()
+  const gistId = getGhGistId()
+  if(!token || !gistId) { alert('Enter your GitHub token and Gist ID first.'); return }
+  if(isSyncing) return
+  isSyncing = true
+  setSyncStatus('idle', 'Syncing…')
+  try {
+    const res = await gistRequest('GET', gistId)
+    if(res === null) { setSyncStatus('ok', '&#10003; Already up to date'); isSyncing = false; return }
+    const raw  = res.files?.[GIST_FILENAME]?.content
+    if(!raw) throw new Error('Shared database file not found in Gist')
+    const data = JSON.parse(raw)
+    const remoteProspects = data.prospects || (Array.isArray(data) ? data : [])
+    const remoteLog       = data.uploadLog || []
+
+    // Merge: keep all unique records from both local and remote
+    const key = p => ((p.businessName||'').toLowerCase().trim()+'|'+(p.contactName||'').toLowerCase().trim()+'|'+(p.state||'').toUpperCase())
+    const localKeys = new Set(prospects.map(key))
+    let added = 0
+    for(const p of remoteProspects) {
+      if(!localKeys.has(key(p))) {
+        prospects.push(p)
+        localKeys.add(key(p))
+        added++
+      } else {
+        // Remote version wins for challenged/corrected records
+        const local = prospects.find(lp => key(lp)===key(p))
+        if(local && p.challenged && !local.challenged) {
+          Object.assign(local, {entityType:p.entityType, challenged:p.challenged, classConfidence:p.classConfidence, challengeNote:p.challengeNote})
+        }
+      }
+    }
+
+    // Merge upload logs (dedupe by filename+date)
+    const logKey = e => (e.filename||'')+(e.date||'')+(e.time||'')
+    const localLogKeys = new Set()
+    let log = []
+    try { log = JSON.parse(localStorage.getItem('ct_uploadlog')||'[]') } catch(e){}
+    log.forEach(e => localLogKeys.add(logKey(e)))
+    for(const e of remoteLog) { if(!localLogKeys.has(logKey(e))) { log.push(e); localLogKeys.add(logKey(e)) } }
+    log.sort((a,b) => new Date(b.date+' '+b.time) - new Date(a.date+' '+a.time))
+    try { localStorage.setItem('ct_uploadlog', JSON.stringify(log.slice(0,50))) } catch(e){}
+
+    save()
+    renderAll()
+    const who   = data.lastUpdatedBy || '?'
+    const when  = data.lastUpdated ? new Date(data.lastUpdated).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '?'
+    const t     = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
+    setSyncStatus('ok', `&#10003; Synced at ${t} &nbsp;·&nbsp; ${added} new records from remote &nbsp;·&nbsp; Last saved by <strong>${who}</strong> at ${when}`)
+  } catch(err) {
+    setSyncStatus('err', `&#9888; Sync failed: ${err.message}`)
+  }
+  isSyncing = false
 }
 function saveKey() {
   const k = document.getElementById('apiKey').value.trim()
@@ -467,7 +726,21 @@ function calcScore(p) {
   return Math.max(0, Math.min(100, Math.round((9-sp)/8*50 + (4-ep)/3*35 + bon)))
 }
 
-// ─── Normalizers ────────────────────────────────────────
+// ─── Confidence scoring ─────────────────────────────────
+function calcConfidence(p) {
+  if(p.challenged) return 'challenged'
+  // From official state database = confirmed
+  if((p.source||'').startsWith('state_')) return 'high'
+  // Has a real license number = confirmed
+  if(p.licenseNumber && p.licenseNumber.length > 3) return 'high'
+  // Company name or address has strong explicit keyword
+  const signal = ((p.businessName||'') + ' ' + (p.address||'')).toLowerCase()
+  if(/\bcultivat|\bgrow|\bfarm\b|\bplant\b|\bflower|\bextract|\blab\b|\btest|\bprocess|manufactur|dispens/.test(signal)) return 'medium'
+  // Only signal is job title or pure fallback
+  return 'low'
+}
+
+
 function ntType(t) {
   t = (t||'').toLowerCase()
   if(/culti|grow|farm|plant|flower|tier\s*1|adult.use.*culti/.test(t)) return 'cultivator'
@@ -504,7 +777,9 @@ function addProspects(arr) {
     if(!ex.has(k)) {
       ex.add(k)
       const dist = calcDist(p)
-      prospects.push({...p, id: Math.random().toString(36).slice(2,9), dateAdded: today(), priorityScore: calcScore(p), distanceMiles: dist?.miles??null, distEstimated: dist?.estimated??true})
+      const rec = {...p, id: Math.random().toString(36).slice(2,9), dateAdded: today(), priorityScore: calcScore(p), distanceMiles: dist?.miles??null, distEstimated: dist?.estimated??true}
+      rec.classConfidence = calcConfidence(rec)
+      prospects.push(rec)
       n++
     }
   }
@@ -530,12 +805,15 @@ function getFiltered() {
   const ft = document.getElementById('ft').value
   const fst = document.getElementById('fst').value
   const fr = parseInt(document.getElementById('fr').value)||0
+  const fc = document.getElementById('fc').value
   return prospects.filter(p => {
     if(fs && p.state !== fs) return false
     if(ft && p.entityType !== ft) return false
     if(fst && p.licenseStatus !== fst) return false
     if(fr && p.distanceMiles != null && p.distanceMiles > fr) return false
-    if(q && !((p.businessName||'').toLowerCase().includes(q)||(p.city||'').toLowerCase().includes(q)||(p.address||'').toLowerCase().includes(q))) return false
+    if(fc === 'challenged' && !p.challenged) return false
+    if(fc && fc !== 'challenged' && !p.challenged && (p.classConfidence||'low') !== fc) return false
+    if(q && !((p.businessName||'').toLowerCase().includes(q)||(p.city||'').toLowerCase().includes(q)||(p.address||'').toLowerCase().includes(q)||(p.contactName||'').toLowerCase().includes(q))) return false
     return true
   }).sort((a,b) => {
     const av = a[sortF]??'', bv = b[sortF]??''
@@ -558,7 +836,14 @@ function statusBadge(s) {
   const cls = s==='active'?'bg-act':s==='pending'?'bg-pen':s==='expired'?'bg-exp':'bg-unk'
   return `<span class="bg ${cls}">${s||'unknown'}</span>`
 }
-function scColor(n) { return n>=75?'var(--green)':n>=45?'var(--amber)':'var(--muted)' }
+function confBadge(p) {
+  if(p.challenged) return `<span class="conf-corr">corrected</span>`
+  const c = p.classConfidence||'low'
+  if(c==='high')   return `<span class="conf-high">confirmed</span>`
+  if(c==='medium') return `<span class="conf-med">likely</span>`
+  return `<span class="conf-low">guessed</span>`
+}
+function typeLabel(t) { return t==='cultivator'?'Cultivator':t==='processor'?'Processor':t==='testing_lab'?'Testing lab':t==='dispensary'?'Dispensary':t||'' }
 function thH(f, label) {
   const cls = sortF===f ? (sortD===-1?'sort-desc':'sort-asc') : ''
   return `<th class="${cls}" onclick="sortBy('${f}')">${label}</th>`
@@ -566,17 +851,55 @@ function thH(f, label) {
 
 // ─── Render stats ────────────────────────────────────────
 function renderStats() {
-  document.getElementById('s-total').textContent = prospects.length
-  document.getElementById('s-cul').textContent = prospects.filter(p=>p.entityType==='cultivator').length
-  document.getElementById('s-pro').textContent = prospects.filter(p=>p.entityType==='processor').length
-  document.getElementById('s-lab').textContent = prospects.filter(p=>p.entityType==='testing_lab').length
-  document.getElementById('s-act').textContent = prospects.filter(p=>p.licenseStatus==='active').length
+  const companies = new Set(prospects.map(p => (p.businessName||'').toLowerCase()+'|'+(p.state||'')))
+  const contacts  = prospects.filter(p => p.contactName).length
+  const emails    = prospects.filter(p => p.email).length
+  const phones    = prospects.filter(p => p.phone).length
+  const active    = prospects.filter(p => p.licenseStatus==='active').length
+  const needsRev  = prospects.filter(p => !p.challenged && (p.classConfidence||'low')==='low').length
+  const challenged= prospects.filter(p => p.challenged).length
+
+  document.getElementById('s-companies').textContent    = companies.size
+  document.getElementById('s-contacts-sub').textContent = contacts + ' individual contacts'
+  document.getElementById('s-emails').textContent       = emails
+  document.getElementById('s-phones-sub').textContent   = phones + ' with phone'
+  document.getElementById('s-act').textContent          = active
+  document.getElementById('s-review').textContent       = needsRev
+  document.getElementById('s-challenged').textContent   = challenged
+
+  // Type breakdown with confidence
+  const types = {cultivator:{label:'Cultivators',color:'var(--green)'},processor:{label:'Processors',color:'var(--blue)'},testing_lab:{label:'Testing labs',color:'var(--purple)'},dispensary:{label:'Dispensaries',color:'var(--amber)'},other:{label:'Other',color:'var(--muted)'}}
+  const breakdown = Object.entries(types).map(([type, cfg]) => {
+    const all   = prospects.filter(p => p.entityType===type)
+    const high  = all.filter(p => (p.classConfidence==='high'||p.challenged)).length
+    const total = all.length
+    if(!total) return ''
+    return `<span style="display:flex;align-items:center;gap:5px">
+      <span style="font-weight:500;color:${cfg.color}">${cfg.label}</span>
+      <span style="color:var(--text)">${total}</span>
+      <span style="color:var(--muted);font-size:12px">(${high} confirmed)</span>
+    </span>`
+  }).filter(Boolean).join('<span style="color:var(--border2);margin:0 4px">|</span>')
+  document.getElementById('type-row').innerHTML = breakdown
+
+  // State pills
   const bySt = {}
   for(const p of prospects) bySt[p.state] = (bySt[p.state]||0)+1
   const sorted = Object.entries(bySt).sort((a,b) => (SP[a[0]]||99)-(SP[b[0]]||99))
   document.getElementById('spills').innerHTML = sorted.map(([s,c]) =>
     `<div class="spill"><b>${s}</b><span>${c}</span></div>`
   ).join('')
+
+  // Show/hide reclassify bar
+  const bar = document.getElementById('rebatch-bar')
+  if(bar) {
+    if(needsRev > 0) {
+      bar.style.display = 'flex'
+      document.getElementById('rebatch-count').textContent = `${needsRev} records have low-confidence classifications.`
+    } else {
+      bar.style.display = 'none'
+    }
+  }
 }
 
 // ─── Render table ────────────────────────────────────────
@@ -597,7 +920,7 @@ function render() {
       ${thH('state','State')}
       ${thH('city','City')}
       ${thH('licenseStatus','Status')}
-      <th>License #</th><th>Phone</th><th>Email</th><th>Contact</th><th>Title</th><th>Source</th>
+      <th>License #</th><th>Phone</th><th>Email</th><th>Contact</th><th>Title</th><th>Confidence</th><th></th>
     </tr></thead>
     <tbody>${disp.map(p => `<tr>
       <td style="white-space:nowrap">
@@ -617,7 +940,8 @@ function render() {
       <td style="color:var(--muted2);font-size:13px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.email||'—'}</td>
       <td style="color:var(--muted2);font-size:13px">${p.contactName||'—'}</td>
       <td style="color:var(--muted2);font-size:13px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.contactTitle||'—'}</td>
-      <td style="color:var(--muted);font-size:13px;white-space:nowrap">${(p.source||'').replace('state_','').replace('excel_','').toUpperCase()}</td>
+      <td style="white-space:nowrap">${confBadge(p)}${p.challengeNote?`<span title="${p.challengeNote}" style="color:var(--muted);font-size:11px;margin-left:4px">ⓘ</span>`:''}</td>
+      <td><button class="btn-ch" onclick="openChallenge('${p.id}')" title="Challenge this classification">&#9873;</button></td>
     </tr>`).join('')}</tbody>
   </table>${rows.length>500?`<div style="text-align:center;padding:10px;font-size:12px;color:var(--muted)">Showing 500 of ${rows.length} — export to Excel to see all</div>`:''}`
 }
@@ -925,11 +1249,109 @@ Important rules:
   renderDBList()
 }
 
-// ─── Excel export ─────────────────────────────────────────
+// ─── Challenge functions ──────────────────────────────────
+let challengeId = null
+
+function openChallenge(id) {
+  const p = prospects.find(x => x.id === id)
+  if(!p) return
+  challengeId = id
+  const typeLabels = {cultivator:'Cultivator',processor:'Processor',testing_lab:'Testing lab',dispensary:'Dispensary',other:'Other'}
+  document.getElementById('modal-company').textContent = p.businessName + (p.state ? ` · ${p.state}` : '')
+  document.getElementById('modal-current').textContent = typeLabels[p.entityType] || p.entityType || '—'
+  document.getElementById('challengeType').value = p.entityType || 'cultivator'
+  document.getElementById('challengeNote').value = p.challengeNote || ''
+  document.getElementById('challengeModal').classList.add('open')
+}
+
+function closeChallenge() {
+  document.getElementById('challengeModal').classList.remove('open')
+  challengeId = null
+}
+
+function saveChallenge() {
+  const p = prospects.find(x => x.id === challengeId)
+  if(!p) return
+  p.entityType      = document.getElementById('challengeType').value
+  p.challenged      = true
+  p.classConfidence = 'challenged'
+  p.challengeNote   = document.getElementById('challengeNote').value.trim()
+  p.priorityScore   = calcScore(p)
+  save()
+  renderAll()
+  closeChallenge()
+}
+
+// ─── Batch AI reclassify ──────────────────────────────────
+async function batchReclassify() {
+  const apiKey = getKey()
+  if(!apiKey) { alert('Enter your Anthropic API key first.'); return }
+
+  const lowConf = prospects.filter(p => !p.challenged && (p.classConfidence||'low') === 'low')
+  if(!lowConf.length) { alert('No low-confidence records to reclassify.'); return }
+
+  const batch = lowConf.slice(0, 50) // process up to 50 at a time
+  const statusEl = document.getElementById('rebatch-status')
+  statusEl.textContent = `Analyzing ${batch.length} companies…`
+
+  const companyList = [...new Set(batch.map(p => p.businessName))].slice(0, 40)
+  const prompt = `You are classifying cannabis industry companies. For each company name below, determine what type of cannabis business it is based on the company name alone.
+
+Companies to classify:
+${companyList.map((n,i) => `${i+1}. ${n}`).join('\n')}
+
+Return ONLY a JSON array, no other text:
+[{"name":"Company Name Here","type":"cultivator","confidence":"high","reason":"brief reason"}]
+
+type must be EXACTLY one of: "cultivator", "processor", "testing_lab", "dispensary", "other"
+confidence must be EXACTLY one of: "high", "medium", "low"
+If you cannot determine the type from the name alone, use "other" with confidence "low".`
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514', max_tokens:3000,
+        tools:[{type:'web_search_20250305',name:'web_search'}],
+        messages:[{role:'user',content:prompt}]
+      })
+    })
+    const data = await res.json()
+    if(data.error) throw new Error(data.error.message)
+    const txt = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('')
+    const m = txt.match(/\[[\s\S]*\]/)
+    if(!m) throw new Error('No JSON found')
+    const results = JSON.parse(m[0])
+
+    let updated = 0
+    for(const r of results) {
+      const matches = prospects.filter(p => !p.challenged && p.businessName === r.name && (p.classConfidence||'low') === 'low')
+      for(const p of matches) {
+        if(r.type && r.type !== p.entityType) {
+          p.entityType = r.type
+          p.classConfidence = r.confidence === 'high' ? 'medium' : 'low' // AI is medium at best
+          p.challengeNote = `AI reclassified: ${r.reason||''}`
+          p.priorityScore = calcScore(p)
+          updated++
+        } else if(r.confidence === 'high') {
+          p.classConfidence = 'medium' // bump up if AI is confident
+        }
+      }
+    }
+    save()
+    renderAll()
+    statusEl.textContent = `✓ Updated ${updated} records. Review and challenge any that still look wrong.`
+  } catch(err) {
+    statusEl.textContent = `Error: ${err.message}`
+    console.error(err)
+  }
+}
+
+
 function exportExcel() {
   const rows = getFiltered()
   if(!rows.length) { alert('No prospects to export.'); return }
-  const typeLabel = t => t==='cultivator'?'Cultivator':t==='processor'?'Processor':t==='testing_lab'?'Testing lab':t||''
   const data = rows.map(p => ({
     'Priority score': p.priorityScore,
     'Distance (mi)': p.distanceMiles != null ? p.distanceMiles + (p.distEstimated ? ' ~est' : '') : '',
@@ -966,7 +1388,21 @@ if(savedKey) {
 const savedInitials = localStorage.getItem('ct_initials')||''
 if(savedInitials) document.getElementById('uploaderInitials').value = savedInitials
 document.getElementById('uploaderInitials').addEventListener('input', saveInitials)
+
+// Restore GitHub credentials
+const savedGhToken  = localStorage.getItem('ct_ghtoken')||''
+const savedGhGistId = localStorage.getItem('ct_gistid')||''
+if(savedGhToken)  document.getElementById('ghToken').value  = savedGhToken
+if(savedGhGistId) document.getElementById('ghGistId').value = savedGhGistId
+updateSyncUI()
+
 renderAll()
+
+// Auto-sync from Gist on startup if configured
+if(savedGhToken && savedGhGistId) {
+  setSyncStatus('idle', 'Connecting to shared database…')
+  setTimeout(syncNow, 800)
+}
 </script>
 </body>
 </html>
