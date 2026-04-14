@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CLEANTheory — Prospect Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Duplet:wght@400;600;700;800&family=Syne:wght@700;800&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f8fafc;--surface:#ffffff;--surface2:#f1f5f9;
+  --border:#e2e8f0;--border2:#cbd5e1;
+  --accent:#0d9488;--text:#0f172a;--muted:#64748b;--muted2:#475569;
+  --green:#16a34a;--blue:#2563eb;--amber:#d97706;--red:#dc2626;--purple:#7c3aed;
+  --green-bg:rgba(22,163,74,.1);--blue-bg:rgba(37,99,235,.1);
+  --amber-bg:rgba(217,119,6,.1);--red-bg:rgba(220,38,38,.1);--purple-bg:rgba(124,58,237,.1);
+}
+html,body{height:100%;font-family:'IBM Plex Mono',monospace;background:var(--bg);color:var(--text);font-size:15px}
+.app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+
+/* Top bar */
+.topbar{background:#ffffff;border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;gap:14px;height:56px;flex-shrink:0}
+.logo{font-family:'Syne',sans-serif;font-size:19px;font-weight:800;letter-spacing:-.3px;white-space:nowrap}
+.logo em{color:var(--accent);font-style:normal}
+.topbar-mid{flex:1;display:flex;justify-content:center}
+.tab-nav{display:flex;gap:2px;background:var(--surface2);border-radius:6px;padding:3px;border:1px solid var(--border)}
+.tab-btn{padding:6px 18px;border-radius:4px;border:none;background:none;color:var(--muted);font-family:inherit;font-size:14px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.tab-btn.on{background:var(--surface);color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.1);font-weight:500}
+.topbar-right{display:flex;align-items:center;gap:8px}
+
+/* API key bar */
+.keybar{background:#f1f5f9;border-bottom:1px solid var(--border);padding:9px 20px;display:flex;align-items:center;gap:10px;font-size:14px;flex-shrink:0}
+.keybar label{color:var(--muted);white-space:nowrap;flex-shrink:0}
+.keybar input{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:4px;font-family:inherit;font-size:14px;width:340px;outline:none;letter-spacing:.03em}
+.keybar input:focus{border-color:var(--accent)}
+.keybar .hint{font-size:12px;color:var(--muted);flex-shrink:0}
+.keybar .hint a{color:var(--accent);text-decoration:none}
+.key-ok{color:var(--green);font-size:12px;flex-shrink:0}
+
+/* Stats */
+.stats-wrap{padding:16px 20px 0}
+.stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px 16px}
+.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+.stat-value{font-size:26px;font-weight:500}
+.state-pills{display:flex;flex-wrap:wrap;gap:5px;padding:0 20px 12px}
+.spill{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:3px 10px;font-size:13px;display:flex;gap:6px}
+.spill b{color:var(--accent)}
+.spill span{color:var(--muted)}
+
+/* Content panes */
+.pane{flex:1;overflow:auto;padding:16px 20px}
+
+/* Filters */
+.filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.filters input,.filters select{
+  background:var(--surface);border:1px solid var(--border);color:var(--text);
+  padding:7px 11px;border-radius:4px;font-family:inherit;font-size:14px;outline:none
+}
+.filters input:focus,.filters select:focus{border-color:var(--accent)}
+.filters select option{background:#ffffff}
+.rc{font-size:13px;color:var(--muted)}
+
+/* Table */
+.tbl-wrap{border:1px solid var(--border);border-radius:6px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;padding:9px 14px;background:#f8fafc;color:var(--muted);font-weight:500;
+   font-size:11px;letter-spacing:.05em;text-transform:uppercase;border-bottom:1px solid var(--border);
+   cursor:pointer;white-space:nowrap;user-select:none;position:sticky;top:0;z-index:1}
+th:hover{color:var(--text)}
+td{padding:9px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f8fafc}
+
+/* Badges */
+.bg{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;white-space:nowrap}
+.bg-cul{background:var(--green-bg);color:var(--green)}
+.bg-pro{background:var(--blue-bg);color:var(--blue)}
+.bg-lab{background:var(--purple-bg);color:var(--purple)}
+.bg-act{background:var(--green-bg);color:var(--green)}
+.bg-pen{background:var(--amber-bg);color:var(--amber)}
+.bg-exp{background:var(--red-bg);color:var(--red)}
+.bg-unk{background:var(--surface2);color:var(--muted)}
+
+/* Score */
+.sc-wrap{display:flex;align-items:center;gap:7px}
+.sc-num{min-width:28px;font-weight:500}
+.sc-bar{width:48px;height:4px;background:var(--surface2);border-radius:2px;overflow:hidden}
+.sc-fill{height:100%;border-radius:2px}
+
+/* Buttons */
+.btn{padding:7px 16px;border-radius:4px;font-family:inherit;font-size:14px;cursor:pointer;border:1px solid;transition:all .15s;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#0a0e17;border-color:var(--accent);font-weight:500}
+.btn-primary:hover{filter:brightness(1.1)}
+.btn-outline{background:none;color:var(--text);border-color:var(--border)}
+.btn-outline:hover{border-color:var(--border2);background:var(--surface)}
+.btn-danger{background:none;color:var(--red);border-color:rgba(220,38,38,.3)}
+.btn-danger:hover{background:rgba(220,38,38,.06)}
+.btn-scrape{background:none;color:var(--accent);border-color:rgba(13,148,136,.4);padding:6px 14px;font-size:14px}
+.btn-scrape:hover{background:rgba(13,148,136,.06)}
+.btn-scrape:disabled{opacity:.35;cursor:not-allowed}
+.btn-done{background:none;color:var(--muted2);border-color:var(--border);padding:6px 14px;font-size:14px}
+.btn-done:hover{border-color:var(--border2)}
+
+/* Import */
+.import-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px 22px;margin-bottom:14px}
+.import-title{font-size:15px;font-weight:500;margin-bottom:7px}
+.import-hint{font-size:14px;color:var(--muted2);margin-bottom:14px;line-height:1.75}
+.import-hint code{background:var(--surface2);padding:1px 6px;border-radius:3px;font-size:13px}
+.status-ok{color:var(--green);font-size:14px;margin-left:8px}
+.status-err{color:var(--red);font-size:14px;margin-left:8px}
+
+/* DB rows */
+.db-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;transition:border-color .15s}
+.db-row:hover{border-color:var(--border2)}
+.p-dot{width:28px;height:28px;border-radius:50%;background:var(--surface2);color:var(--accent);
+       display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;
+       flex-shrink:0;border:1px solid var(--border)}
+.db-info{flex:1;min-width:0}
+.db-name{font-size:14px;font-weight:500;margin-bottom:3px}
+.db-url{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.db-url a{color:var(--muted);text-decoration:none}
+.db-url a:hover{color:var(--accent)}
+
+/* Note boxes */
+.note{background:#fffbeb;border:1px solid rgba(217,119,6,.3);border-radius:6px;padding:13px 16px;font-size:14px;color:#92400e;line-height:1.6;margin-top:12px}
+.info{background:#f0fdfa;border-left:3px solid var(--accent);border-radius:0 6px 6px 0;padding:13px 16px;font-size:14px;color:var(--muted2);line-height:1.6;margin-top:10px}
+
+textarea{background:var(--surface);border:1px solid var(--border);color:var(--text);
+         padding:8px 12px;border-radius:4px;font-family:inherit;font-size:12px;
+         width:100%;resize:vertical;outline:none;line-height:1.6;margin-bottom:10px}
+textarea:focus{border-color:var(--accent)}
+
+.empty{text-align:center;padding:60px;color:var(--muted)}
+.empty-icon{font-size:36px;margin-bottom:12px}
+.trunc{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Spinner */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:4px}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+
+/* Confidence + challenge */
+.conf-high{background:rgba(22,163,74,.1);color:var(--green);padding:2px 7px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap;display:inline-block}
+.conf-med{background:rgba(217,119,6,.1);color:var(--amber);padding:2px 7px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap;display:inline-block}
+.conf-low{background:var(--surface2);color:var(--muted);padding:2px 7px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap;display:inline-block}
+.conf-corr{background:rgba(37,99,235,.1);color:var(--blue);padding:2px 7px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap;display:inline-block}
+.btn-ch{background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:2px 6px;border-radius:3px;font-family:inherit;opacity:.7}
+.btn-ch:hover{background:var(--surface2);color:var(--text);opacity:1}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:3px}
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9999;align-items:center;justify-content:center}
+.modal-ov.open{display:flex}
+.modal-box{background:#fff;border-radius:10px;padding:24px;max-width:460px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.modal-box h3{font-size:15px;font-weight:600;margin-bottom:4px}
+.modal-lbl{font-size:13px;color:var(--muted);margin:12px 0 4px}
+.modal-box select,.modal-box input[type=text]{width:100%;font-size:14px;padding:7px 10px;border:1px solid var(--border);border-radius:4px;font-family:inherit;outline:none}
+.modal-box select:focus,.modal-box input[type=text]:focus{border-color:var(--accent)}
+.modal-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.rebatch-bar{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#fffbeb;border:1px solid rgba(217,119,6,.25);border-radius:6px;margin-bottom:12px;font-size:13px;color:#92400e}
+.syncbar{background:#f8fafc;border-bottom:1px solid var(--border);padding:8px 20px;display:flex;align-items:center;gap:10px;font-size:12px;flex-shrink:0;flex-wrap:wrap}
+.syncbar label{color:var(--muted);white-space:nowrap;flex-shrink:0}
+.syncbar input{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:4px;font-family:inherit;font-size:12px;outline:none}
+.syncbar input:focus{border-color:var(--accent)}
+.sync-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}
+.sync-ok{background:var(--green)}
+.sync-warn{background:var(--amber)}
+.sync-err{background:var(--red)}
+.sync-idle{background:var(--muted)}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div style="font-family:'Duplet',sans-serif;font-size:22px;font-weight:700;white-space:nowrap;flex-shrink:0;letter-spacing:-.2px">
+      <span style="color:var(--text)">CLEAN</span><span style="color:var(--accent)">Theory</span><span style="color:var(--muted);font-size:13px;font-weight:400;margin-left:14px;font-family:'IBM Plex Mono',monospace;letter-spacing:0">Prospect Intelligence</span>
+    </div>
+    <div class="topbar-mid">
+      <div class="tab-nav">
+        <button class="tab-btn on" onclick="showTab('list',this)">&#9776; Prospect list</button>
+        <button class="tab-btn" onclick="showTab('import',this)">&#8679; Import data</button>
+        <button class="tab-btn" onclick="showTab('states',this)">&#9740; State databases</button>
+        <button class="tab-btn" onclick="showTab('intel',this)">&#9432; How we process data</button>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-danger" onclick="clearAll()" style="font-size:11px;padding:5px 10px">Clear all</button>
+      <button class="btn btn-primary" onclick="exportExcel()">&#8659; Export Excel</button>
+    </div>
+  </div>
+
+  <!-- API Key bar -->
+  <div class="keybar">
+    <label>Anthropic API key</label>
+    <input type="password" id="apiKey" placeholder="sk-ant-api03-..." oninput="saveKey()" autocomplete="off">
+    <span class="key-ok" id="keyOk" style="display:none">&#10003; Saved</span>
+    <span class="hint">Required for scraping &mdash; get one free at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></span>
+  </div>
+
+  <!-- GitHub Gist Sync bar -->
+  <div class="syncbar" id="syncbar">
+    <label>GitHub sync</label>
+    <input type="password" id="ghToken" placeholder="GitHub Personal Access Token (gist scope)" style="width:290px" oninput="ghTokenChanged()">
+    <input type="text" id="ghGistId" placeholder="Gist ID (share with teammates)" style="width:210px" oninput="ghGistChanged()">
+    <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" id="ghCreateBtn" onclick="createGist()" style="display:none">&#43; Create shared DB</button>
+    <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" id="ghSyncBtn" onclick="syncNow()" style="display:none">&#8645; Sync now</button>
+    <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" id="ghPushBtn" onclick="forcePush()" style="display:none" title="Overwrite remote with your local data">&#8593; Push local data</button>
+    <span id="syncStatus" style="color:var(--muted)"><span class="sync-dot sync-idle"></span>Not connected</span>
+    <span style="color:var(--muted);font-size:11px;margin-left:auto">Token needs <strong>gist</strong> scope only &mdash; <a href="https://github.com/settings/tokens/new?scopes=gist&description=CLEANTheory+Prospects" target="_blank" style="color:var(--accent)">create one here</a></span>
+  </div>
+
+  <!-- Stats (always visible) -->
+  <div class="stats-wrap">
+    <div class="stats-grid" id="stats">
+      <div class="stat-card">
+        <div class="stat-label">Companies</div>
+        <div class="stat-value" style="color:var(--accent)" id="s-companies">0</div>
+        <div class="stat-sub" id="s-contacts-sub">0 individual contacts</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Emails on file</div>
+        <div class="stat-value" style="color:var(--text)" id="s-emails">0</div>
+        <div class="stat-sub" id="s-phones-sub">0 with phone</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Active licenses</div>
+        <div class="stat-value" style="color:var(--green)" id="s-act">0</div>
+        <div class="stat-sub">confirmed from state data</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Needs review</div>
+        <div class="stat-value" style="color:var(--amber)" id="s-review">0</div>
+        <div class="stat-sub">low-confidence type</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Challenged</div>
+        <div class="stat-value" style="color:var(--blue)" id="s-challenged">0</div>
+        <div class="stat-sub">manually corrected</div>
+      </div>
+    </div>
+    <!-- Type breakdown row -->
+    <div id="type-row" style="display:flex;gap:20px;padding:0 20px 10px;font-size:13px;flex-wrap:wrap"></div>
+  </div>
+  <div class="state-pills" id="spills"></div>
+
+  <!-- Challenge modal -->
+  <div class="modal-ov" id="challengeModal">
+    <div class="modal-box">
+      <h3>&#9873; Challenge classification</h3>
+      <div id="modal-company" style="font-size:13px;color:var(--muted);margin-top:3px"></div>
+      <div class="modal-lbl">Current classification</div>
+      <div id="modal-current" style="font-size:14px;font-weight:500"></div>
+      <div class="modal-lbl">Correct type</div>
+      <select id="challengeType">
+        <option value="cultivator">Cultivator (grower / farm)</option>
+        <option value="processor">Processor (extractor / manufacturer)</option>
+        <option value="testing_lab">Testing lab (analytical)</option>
+        <option value="dispensary">Dispensary / retail only</option>
+        <option value="other">Other / unknown</option>
+      </select>
+      <div class="modal-lbl">Note <span style="color:var(--muted);font-weight:400">(optional — why are you changing this?)</span></div>
+      <input type="text" id="challengeNote" placeholder="e.g. Checked their website — extraction only, no cultivation">
+      <div class="modal-acts">
+        <button class="btn btn-outline" onclick="closeChallenge()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveChallenge()">Save correction</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANE: Prospect List -->
+  <div class="pane" id="pane-list">
+    <div class="filters">
+      <input type="text" id="q" placeholder="Search businesses..." oninput="render()" style="width:180px">
+      <select id="fs" onchange="render()">
+        <option value="">All states</option>
+        <option value="MA">MA &mdash; Priority 1</option>
+        <option value="NJ">NJ &mdash; Priority 2</option>
+        <option value="PA">PA &mdash; Priority 3</option>
+        <option value="NY">NY &mdash; Priority 3</option>
+        <option value="CT">CT &mdash; Priority 4</option>
+        <option value="RI">RI &mdash; Priority 5</option>
+        <option value="ME">ME &mdash; Priority 6</option>
+        <option value="NH">NH &mdash; Priority 6</option>
+        <option value="VT">VT &mdash; Priority 6</option>
+        <option value="MD">MD &mdash; Priority 7</option>
+        <option value="VA">VA &mdash; Priority 8</option>
+      </select>
+      <select id="ft" onchange="render()">
+        <option value="">All types</option>
+        <option value="cultivator">Cultivators</option>
+        <option value="processor">Processors</option>
+        <option value="testing_lab">Testing labs</option>
+        <option value="dispensary">Dispensaries</option>
+        <option value="other">Other</option>
+      </select>
+      <select id="fst" onchange="render()">
+        <option value="">All statuses</option>
+        <option value="active">Active</option>
+        <option value="pending">Pending</option>
+        <option value="expired">Expired</option>
+        <option value="unknown">Unknown</option>
+      </select>
+      <select id="fc" onchange="render()">
+        <option value="">All confidence</option>
+        <option value="high">Confirmed</option>
+        <option value="medium">Likely</option>
+        <option value="low">Guessed</option>
+        <option value="challenged">Corrected</option>
+      </select>
+      <select id="fr" onchange="render()" title="Distance from Easthampton, MA">
+        <option value="">Any distance</option>
+        <option value="50">Within 50 mi</option>
+        <option value="100">Within 100 mi</option>
+        <option value="150">Within 150 mi</option>
+        <option value="200">Within 200 mi</option>
+        <option value="300">Within 300 mi</option>
+        <option value="500">Within 500 mi</option>
+      </select>
+      <span style="font-size:12px;color:var(--muted)">&#8982; Easthampton, MA</span>
+      <span class="rc" id="rc"></span>
+    </div>
+    <div id="rebatch-bar" style="display:none" class="rebatch-bar">
+      <span id="rebatch-count"></span>
+      <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" onclick="batchReclassify()">&#9889; Reclassify with AI</button>
+      <span style="font-size:12px;color:#b45309">Uses Claude web search to look up each company and correct their type.</span>
+      <span id="rebatch-status" style="font-size:12px;margin-left:auto"></span>
+    </div>
+    <div class="tbl-wrap" id="tbl"></div>
+  </div>
+
+  <!-- PANE: Import -->
+  <div class="pane" id="pane-import" style="display:none;max-width:700px">
+
+    <div class="import-card" style="display:flex;align-items:center;gap:14px;padding:14px 20px">
+      <div style="font-size:13px;color:var(--muted);white-space:nowrap;flex-shrink:0">Your initials <span style="color:var(--muted);font-size:12px">(optional)</span></div>
+      <input type="text" id="uploaderInitials" placeholder="e.g. CE" maxlength="4"
+             style="width:80px;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:.1em"
+             oninput="this.value=this.value.toUpperCase()"
+             title="Your initials are saved with each upload so teammates know who imported what">
+      <div style="font-size:12px;color:var(--muted)">Saved with each import so teammates know who uploaded what.</div>
+    </div>
+
+    <div class="import-card">
+      <div class="import-title">&#9635; Excel / CSV upload</div>
+      <div class="import-hint">
+        Upload any <code>.xlsx</code> or <code>.csv</code> file. Column names are auto-detected &mdash; your file doesn't need to match any exact format.
+        Recognized headers include: Business Name, Name, Company, License Number, Type, State, City, Address, Phone, Email, Website, Status, Notes.
+        Duplicates (same name + state) are automatically blocked.
+      </div>
+      <input type="file" id="ef" accept=".xlsx,.xls,.csv" onchange="doXL(event)" style="display:none">
+      <button class="btn btn-outline" onclick="document.getElementById('ef').click()">Choose file&hellip;</button>
+      <span id="es"></span>
+    </div>
+
+    <div class="import-card">
+      <div class="import-title">&#9728; Google Maps custom list</div>
+      <div class="import-hint">
+        To export your custom map from Google My Maps:<br>
+        1. Open your map at <a href="https://mymaps.google.com" target="_blank" style="color:var(--accent)">mymaps.google.com</a><br>
+        2. Click the <code>&#8942;</code> menu next to your layer name<br>
+        3. Choose <strong>Export to KML/KMZ</strong><br>
+        4. Uncheck &ldquo;Export to .kmz format&rdquo; &mdash; this gives you a .kml file<br>
+        5. Open the file in a text editor, select all, paste below<br><br>
+        Or paste a plain list: one business per line, or <code>Name, City, State</code> format.
+      </div>
+      <textarea id="gm" rows="8" placeholder="Paste KML content or plain business list here..."></textarea>
+      <button class="btn btn-outline" onclick="doGM()">Import</button>
+      <span id="gms"></span>
+    </div>
+
+    <div class="info">
+      Need help? If your spreadsheet uses different column names or a different layout, paste a few sample rows in the chat with Claude and ask for help mapping the columns before importing.
+    </div>
+
+    <div style="margin-top:20px">
+      <div style="font-size:14px;font-weight:500;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+        <span>Upload history</span>
+        <button class="btn btn-outline" style="font-size:11px;padding:3px 10px" onclick="clearUploadLog()">Clear log</button>
+      </div>
+      <div id="uploadLog"></div>
+    </div>
+  </div>
+
+  <!-- PANE: State Databases -->
+  <div class="pane" id="pane-states" style="display:none">
+    <p style="font-size:12px;color:var(--muted2);margin-bottom:14px">
+      Listed in your target priority order. Click <strong style="color:var(--accent)">Scrape</strong> to pull active licensees via AI-assisted web search.
+      Enter your Anthropic API key in the bar above before scraping.
+    </p>
+    <div id="dblist"></div>
+    <div class="note">
+      &#9888;&nbsp; AI scraping is best-effort &mdash; state database formats and access vary. After scraping, review imported records and correct any entity types or statuses that look wrong.
+      For the most complete and accurate data, download official CSV/Excel exports directly from each state&rsquo;s website when available.
+    </div>
+  </div>
+
+  <!-- PANE: How we process data -->
+  <div class="pane" id="pane-intel" style="display:none;max-width:820px">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+
+      <div class="import-card">
+        <div class="import-title" style="color:var(--accent)">&#9650; Priority scoring</div>
+        <div class="import-hint" style="margin-bottom:0">
+          Every prospect gets a score from 0–100 built from three factors:<br><br>
+          <strong style="color:var(--text)">State weight (50 pts max)</strong><br>
+          MA scores highest (50 pts). VA lowest (6 pts). PA and NY are tied at priority 3.<br><br>
+          <strong style="color:var(--text)">Entity type (35 pts max)</strong><br>
+          Cultivators get the full 35 pts. Processors get 23 pts. Testing labs get 12 pts.<br><br>
+          <strong style="color:var(--text)">License status (15 pts max)</strong><br>
+          Active: +15 pts &nbsp; Pending: +5 pts &nbsp; Expired/unknown: +0 pts<br><br>
+          A MA cultivator with an active license scores <strong style="color:var(--green)">100</strong>. A VA testing lab with an expired license scores <strong style="color:var(--muted)">~18</strong>.
+        </div>
+      </div>
+
+      <div class="import-card">
+        <div class="import-title" style="color:var(--accent)">&#8644; Deduplication</div>
+        <div class="import-hint" style="margin-bottom:0">
+          When you import from multiple sources, the same business often appears more than once.<br><br>
+          <strong style="color:var(--text)">Automatic blocking</strong><br>
+          Any record with the same business name + state as an existing entry is blocked on import. Catches exact duplicates across all sources.<br><br>
+          <strong style="color:var(--text)">Fuzzy matching (review phase)</strong><br>
+          Claude will scan for near-matches: "Green Leaf Farms LLC" vs "Green Leaf Farm", abbreviations, DBA names, and address duplicates with different business names.<br><br>
+          <strong style="color:var(--text)">Best data wins</strong><br>
+          When duplicates are merged, the record with the most complete contact info is kept as the primary.
+        </div>
+      </div>
+
+      <div class="import-card">
+        <div class="import-title" style="color:var(--accent)">&#9873; Entity classification</div>
+        <div class="import-hint" style="margin-bottom:0">
+          State databases use wildly inconsistent license category names. The app normalizes them automatically:<br><br>
+          <span style="color:var(--green);font-weight:500">Cultivator</span> — cultivat, grow, farm, plant, flower, Tier 1<br>
+          <span style="color:var(--blue);font-weight:500">Processor</span> — process, manufactur, extract, infus, MIP, Tier 2<br>
+          <span style="color:var(--purple);font-weight:500">Testing lab</span> — test, lab, analy, certif<br><br>
+          During review, Claude flags any record where the classification looks wrong based on the business name or address, and asks you to confirm before changing it.
+        </div>
+      </div>
+
+      <div class="import-card">
+        <div class="import-title" style="color:var(--accent)">&#8982; Distance filtering</div>
+        <div class="import-hint" style="margin-bottom:0">
+          All distances are measured from <strong style="color:var(--text)">Easthampton, MA</strong> using the Haversine formula (straight-line, not driving distance).<br><br>
+          <strong style="color:var(--text)">Exact</strong> — scraped records request lat/lng from the AI. Distance is precise to the address.<br><br>
+          <strong style="color:var(--text)">Estimated (~)</strong> — Excel or Google Maps records without coordinates use the geographic center of their state. Can be off by 50–100 miles for large states like NY and PA. A tilde marks estimated distances in the table.<br><br>
+          Use the radius filter in the Prospect list tab to narrow to a specific distance from Easthampton.
+        </div>
+      </div>
+
+      <div class="import-card">
+        <div class="import-title" style="color:var(--accent)">&#9906; Address validation (review phase)</div>
+        <div class="import-hint" style="margin-bottom:0">
+          A licensed address is not always the grow site. During full review, Claude flags:<br><br>
+          &bull; Law firm or registered agent addresses (downtown, suite numbers)<br>
+          &bull; Corporate HQ that doesn't match the license city<br>
+          &bull; PO Box addresses with no physical location<br>
+          &bull; Addresses shared across multiple records (same registered agent)<br><br>
+          Flagged records get a note added. You decide whether to keep, update, or remove.
+        </div>
+      </div>
+
+      <div class="import-card">
+        <div class="import-title" style="color:var(--accent)">&#9889; Enrichment (review phase)</div>
+        <div class="import-hint" style="margin-bottom:0">
+          For high-priority records (MA and NJ cultivators first), Claude web-searches to fill missing data:<br><br>
+          &bull; <strong style="color:var(--text)">Phone &amp; email</strong> — from company website, LinkedIn, state filings<br>
+          &bull; <strong style="color:var(--text)">Contact name &amp; title</strong> — Cultivation Director, COO, Operations Manager (not the license attorney)<br>
+          &bull; <strong style="color:var(--text)">Facility confirmation</strong> — verifying the address is an actual grow site<br>
+          &bull; <strong style="color:var(--text)">Operational status</strong> — some licensed businesses are not yet operating<br><br>
+          Enrichment runs in batches. You review and approve before anything is saved.
+        </div>
+      </div>
+
+    </div>
+
+    <div class="info">
+      <strong>Ready to start the review?</strong> Once you've loaded your data and run the state scrapes, come back to Claude and say "Let's review the prospect data" — Claude will walk through the list systematically, flagging duplicates, bad addresses, misclassified entities, and missing contacts for your approval.
+    </div>
+
+  </div>
+
+</div><!-- .app -->
+
+<script>
+// ─── Data ───────────────────────────────────────────────
+const SP = {MA:1,NJ:2,PA:3,NY:3,CT:4,RI:5,ME:6,NH:6,VT:6,MD:7,VA:8}
+const EP = {cultivator:1,processor:2,testing_lab:3}
+
+// Home base: Easthampton, MA
+const HOME = {lat:42.2668, lng:-72.6679}
+
+// State geographic centroids — used when a prospect has no exact coordinates
+const CENTROIDS = {
+  MA:{lat:42.4072,lng:-71.3824}, CT:{lat:41.6032,lng:-73.0877},
+  RI:{lat:41.5801,lng:-71.4774}, NH:{lat:43.1939,lng:-71.5724},
+  VT:{lat:44.0459,lng:-72.7107}, ME:{lat:45.2538,lng:-69.4455},
+  NY:{lat:42.1657,lng:-74.9481}, NJ:{lat:40.0583,lng:-74.4057},
+  PA:{lat:41.2033,lng:-77.1945}, MD:{lat:39.0458,lng:-76.6413},
+  VA:{lat:37.4316,lng:-78.6569}, DE:{lat:38.9108,lng:-75.5277},
+  CA:{lat:36.7783,lng:-119.4179}, NV:{lat:38.8026,lng:-116.4194},
+  OR:{lat:43.8041,lng:-120.5542}, WA:{lat:47.7511,lng:-120.7401},
+  CO:{lat:39.5501,lng:-105.7821}, AZ:{lat:34.0489,lng:-111.0937},
+  IL:{lat:40.6331,lng:-89.3985}, MI:{lat:44.3148,lng:-85.6024},
+  OH:{lat:40.4173,lng:-82.9071}, MO:{lat:37.9643,lng:-91.8318},
+  MN:{lat:46.7296,lng:-94.6859}, FL:{lat:27.7663,lng:-81.6868},
+  TX:{lat:31.9686,lng:-99.9018}, NC:{lat:35.7596,lng:-79.0193},
+  NM:{lat:34.5199,lng:-105.8701}, MT:{lat:46.8797,lng:-110.3626},
+  AK:{lat:64.2008,lng:-153.4937}, HI:{lat:19.8968,lng:-155.5828}
+}
+
+function haversine(lat1,lng1,lat2,lng2){
+  const R=3959, dLat=(lat2-lat1)*Math.PI/180, dLng=(lng2-lng1)*Math.PI/180
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2
+  return Math.round(R*2*Math.asin(Math.sqrt(a)))
+}
+
+function calcDist(p){
+  if(p.lat && p.lng) return {miles:haversine(HOME.lat,HOME.lng,+p.lat,+p.lng), estimated:false}
+  const c = CENTROIDS[p.state]
+  return c ? {miles:haversine(HOME.lat,HOME.lng,c.lat,c.lng), estimated:true} : null
+}
+const DBS = [
+  {s:'MA',p:1,n:'MA Cannabis Control Commission',url:'https://masscannabiscontrol.com/licensing/licensee-list/'},
+  {s:'NJ',p:2,n:'NJ Cannabis Regulatory Commission',url:'https://www.nj.gov/cannabis/businesses/licensed-businesses.shtml'},
+  {s:'PA',p:3,n:'PA Dept of Health – Medical Cannabis',url:'https://www.health.pa.gov/topics/programs/Medical%20Marijuana/Pages/Industry.aspx'},
+  {s:'NY',p:3,n:'NY Office of Cannabis Management',url:'https://cannabis.ny.gov/licensee-list'},
+  {s:'CT',p:4,n:'CT Dept of Consumer Protection',url:'https://portal.ct.gov/DCP/Cannabis-Licensing/Resources/Licensed-Cannabis-Establishments'},
+  {s:'RI',p:5,n:'RI Dept of Business Regulation',url:'https://dbr.ri.gov/cannabis/licensing/active-licensees'},
+  {s:'ME',p:6,n:'ME Office of Cannabis Policy',url:'https://www.maine.gov/dafs/ocp/adult-use/licensing/current-licensees'},
+  {s:'NH',p:6,n:'NH Therapeutic Cannabis Program',url:'https://www.dhhs.nh.gov/programs-services/behavioral-health/therapeutic-cannabis'},
+  {s:'VT',p:6,n:'VT Cannabis Control Board',url:'https://ccb.vermont.gov/licensee-search'},
+  {s:'MD',p:7,n:'MD Cannabis Administration',url:'https://cca.maryland.gov/pages/industry.aspx'},
+  {s:'VA',p:8,n:'VA Cannabis Control Authority',url:'https://www.vca.virginia.gov/'},
+]
+
+let prospects = []
+let sortF = 'priorityScore', sortD = -1
+let scrSt = {}
+
+// ─── Persistence ────────────────────────────────────────
+function save() {
+  try { localStorage.setItem('ct_prospects', JSON.stringify(prospects)) } catch(e){}
+  scheduleGistSave()
+}
+function load() {
+  try { prospects = JSON.parse(localStorage.getItem('ct_prospects')||'[]') } catch(e){ prospects = [] }
+}
+
+// ─── GitHub Gist Sync ────────────────────────────────────
+const GIST_FILENAME = 'ct_prospects.json'
+let gistSaveTimer = null
+let lastGistEtag = null
+let isSyncing = false
+
+function getGhToken()  { return (document.getElementById('ghToken')?.value||'').trim() || (localStorage.getItem('ct_ghtoken')||'') }
+function getGhGistId() { return (document.getElementById('ghGistId')?.value||'').trim() || (localStorage.getItem('ct_gistid')||'') }
+
+function ghTokenChanged() {
+  const t = document.getElementById('ghToken').value.trim()
+  try { localStorage.setItem('ct_ghtoken', t) } catch(e){}
+  updateSyncUI()
+}
+function ghGistChanged() {
+  const g = document.getElementById('ghGistId').value.trim()
+  try { localStorage.setItem('ct_gistid', g) } catch(e){}
+  updateSyncUI()
+}
+
+function updateSyncUI() {
+  const token  = getGhToken()
+  const gistId = getGhGistId()
+  const createBtn = document.getElementById('ghCreateBtn')
+  const syncBtn   = document.getElementById('ghSyncBtn')
+  const pushBtn   = document.getElementById('ghPushBtn')
+  if(!token) {
+    createBtn.style.display = 'none'
+    syncBtn.style.display   = 'none'
+    pushBtn.style.display   = 'none'
+  } else if(!gistId) {
+    createBtn.style.display = ''
+    syncBtn.style.display   = 'none'
+    pushBtn.style.display   = 'none'
+  } else {
+    createBtn.style.display = 'none'
+    syncBtn.style.display   = ''
+    pushBtn.style.display   = ''
+  }
+}
+
+async function forcePush() {
+  const token  = getGhToken()
+  const gistId = getGhGistId()
+  if(!token || !gistId) return
+  if(!confirm('This will overwrite the remote Gist with your current local data. Continue?')) return
+  isSyncing = true
+  setSyncStatus('idle', 'Uploading local data…')
+  try {
+    await gistRequest('PATCH', gistId, { files:{ [GIST_FILENAME]:{ content: buildGistPayload().files[GIST_FILENAME].content } } })
+    const t = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
+    setSyncStatus('ok', `&#10003; Local data pushed at ${t}`)
+  } catch(err) {
+    setSyncStatus('err', `&#9888; Push failed: ${err.message}`)
+  }
+  isSyncing = false
+}
+
+function setSyncStatus(type, msg) {
+  const el = document.getElementById('syncStatus')
+  if(!el) return
+  const dotClass = type==='ok'?'sync-ok':type==='warn'?'sync-warn':type==='err'?'sync-err':'sync-idle'
+  el.innerHTML = `<span class="sync-dot ${dotClass}"></span>${msg}`
+}
+
+async function gistRequest(method, gistId, body) {
+  const token = getGhToken()
+  const url   = gistId ? `https://api.github.com/gists/${gistId}` : 'https://api.github.com/gists'
+  const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28' }
+  if(lastGistEtag && method==='GET') headers['If-None-Match'] = lastGistEtag
+  const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined })
+  if(res.status === 304) return null // not modified
+  if(!res.ok) throw new Error(`GitHub API ${res.status}: ${await res.text()}`)
+  if(res.headers.get('ETag')) lastGistEtag = res.headers.get('ETag')
+  return res.json()
+}
+
+function buildGistPayload() {
+  let log = []
+  try { log = JSON.parse(localStorage.getItem('ct_uploadlog')||'[]') } catch(e){}
+  const data = { version:1, lastUpdated: new Date().toISOString(), lastUpdatedBy: (localStorage.getItem('ct_initials')||'?'), prospects, uploadLog: log }
+  return { description:'CLEANTheory Prospect Intelligence — Shared Database', public:false, files:{ [GIST_FILENAME]:{ content: JSON.stringify(data) } } }
+}
+
+async function createGist() {
+  const token = getGhToken()
+  if(!token) { alert('Enter your GitHub Personal Access Token first.'); return }
+  setSyncStatus('idle', 'Creating shared database…')
+  try {
+    const res = await gistRequest('POST', null, buildGistPayload())
+    const gistId = res.id
+    document.getElementById('ghGistId').value = gistId
+    try { localStorage.setItem('ct_gistid', gistId) } catch(e){}
+    updateSyncUI()
+    setSyncStatus('ok', `&#10003; Created &nbsp;·&nbsp; Share Gist ID: <strong style="user-select:all">${gistId}</strong>`)
+  } catch(err) {
+    setSyncStatus('err', `&#9888; ${err.message}`)
+  }
+}
+
+function scheduleGistSave() {
+  const token  = getGhToken()
+  const gistId = getGhGistId()
+  if(!token || !gistId) return
+  clearTimeout(gistSaveTimer)
+  gistSaveTimer = setTimeout(saveToGist, 2000)
+}
+
+async function saveToGist() {
+  const token  = getGhToken()
+  const gistId = getGhGistId()
+  if(!token || !gistId || isSyncing) return
+  isSyncing = true
+  setSyncStatus('idle', 'Saving…')
+  try {
+    await gistRequest('PATCH', gistId, { files:{ [GIST_FILENAME]:{ content: buildGistPayload().files[GIST_FILENAME].content } } })
+    const t = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
+    setSyncStatus('ok', `&#10003; Saved at ${t}`)
+  } catch(err) {
+    setSyncStatus('err', `&#9888; Save failed: ${err.message}`)
+  }
+  isSyncing = false
+}
+
+async function syncNow() {
+  const token  = getGhToken()
+  const gistId = getGhGistId()
+  if(!token || !gistId) { alert('Enter your GitHub token and Gist ID first.'); return }
+  if(isSyncing) return
+  isSyncing = true
+  setSyncStatus('idle', 'Syncing…')
+  try {
+    const res = await gistRequest('GET', gistId)
+    if(res === null) { setSyncStatus('ok', '&#10003; Already up to date'); isSyncing = false; return }
+    const raw  = res.files?.[GIST_FILENAME]?.content
+    if(!raw) throw new Error('Shared database file not found in Gist')
+    let data = JSON.parse(raw)
+    // Safety: handle double-encoded JSON (a previous bug would stringify twice)
+    if(typeof data === 'string') {
+      data = JSON.parse(data)
+    }
+    // If data has no prospects key, it might be a raw array (very old format)
+    if(Array.isArray(data)) {
+      data = { prospects: data, uploadLog: [] }
+    }
+    const remoteProspects = data.prospects || (Array.isArray(data) ? data : [])
+    const remoteLog       = data.uploadLog || []
+
+    // Merge: keep all unique records from both local and remote
+    const key = p => ((p.businessName||'').toLowerCase().trim()+'|'+(p.contactName||'').toLowerCase().trim()+'|'+(p.state||'').toUpperCase())
+    const localKeys = new Set(prospects.map(key))
+    let added = 0
+    for(const p of remoteProspects) {
+      if(!localKeys.has(key(p))) {
+        prospects.push(p)
+        localKeys.add(key(p))
+        added++
+      } else {
+        // Remote version wins for challenged/corrected records
+        const local = prospects.find(lp => key(lp)===key(p))
+        if(local && p.challenged && !local.challenged) {
+          Object.assign(local, {entityType:p.entityType, challenged:p.challenged, classConfidence:p.classConfidence, challengeNote:p.challengeNote})
+        }
+      }
+    }
+
+    // Merge upload logs (dedupe by filename+date)
+    const logKey = e => (e.filename||'')+(e.date||'')+(e.time||'')
+    const localLogKeys = new Set()
+    let log = []
+    try { log = JSON.parse(localStorage.getItem('ct_uploadlog')||'[]') } catch(e){}
+    log.forEach(e => localLogKeys.add(logKey(e)))
+    for(const e of remoteLog) { if(!localLogKeys.has(logKey(e))) { log.push(e); localLogKeys.add(logKey(e)) } }
+    log.sort((a,b) => new Date(b.date+' '+b.time) - new Date(a.date+' '+a.time))
+    try { localStorage.setItem('ct_uploadlog', JSON.stringify(log.slice(0,50))) } catch(e){}
+
+    save()
+    renderAll()
+    const who   = data.lastUpdatedBy || '?'
+    const when  = data.lastUpdated ? new Date(data.lastUpdated).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '?'
+    const t     = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
+    setSyncStatus('ok', `&#10003; Synced at ${t} &nbsp;·&nbsp; ${added} new records from remote &nbsp;·&nbsp; Last saved by <strong>${who}</strong> at ${when}`)
+  } catch(err) {
+    setSyncStatus('err', `&#9888; Sync failed: ${err.message}`)
+  }
+  isSyncing = false
+}
+function saveKey() {
+  const k = document.getElementById('apiKey').value.trim()
+  try { localStorage.setItem('ct_apikey', k) } catch(e){}
+  document.getElementById('keyOk').style.display = k ? '' : 'none'
+}
+function getKey() {
+  return document.getElementById('apiKey').value.trim() || (localStorage.getItem('ct_apikey')||'')
+}
+
+// ─── Scoring ────────────────────────────────────────────
+function calcScore(p) {
+  const sp = SP[p.state]||10, ep = EP[p.entityType]||4
+  const bon = p.licenseStatus==='active'?15 : p.licenseStatus==='pending'?5 : 0
+  return Math.max(0, Math.min(100, Math.round((9-sp)/8*50 + (4-ep)/3*35 + bon)))
+}
+
+// ─── Confidence scoring ─────────────────────────────────
+function calcConfidence(p) {
+  if(p.challenged) return 'challenged'
+  // From official state database = confirmed
+  if((p.source||'').startsWith('state_')) return 'high'
+  // Has a real license number = confirmed
+  if(p.licenseNumber && p.licenseNumber.length > 3) return 'high'
+  // Company name or address has strong explicit keyword
+  const signal = ((p.businessName||'') + ' ' + (p.address||'')).toLowerCase()
+  if(/\bcultivat|\bgrow|\bfarm\b|\bplant\b|\bflower|\bextract|\blab\b|\btest|\bprocess|manufactur|dispens/.test(signal)) return 'medium'
+  // Only signal is job title or pure fallback
+  return 'low'
+}
+
+
+function ntType(t) {
+  t = (t||'').toLowerCase()
+  if(/culti|grow|farm|plant|flower|tier\s*1|adult.use.*culti/.test(t)) return 'cultivator'
+  if(/process|manufactur|product|extract|infus|tier\s*2|\bmip\b/.test(t)) return 'processor'
+  if(/\btest|\blab\b|analy|certif/.test(t)) return 'testing_lab'
+  return 'cultivator'
+}
+function ntStatus(s) {
+  s = (s||'').toLowerCase()
+  if(/active|approv|current|valid|licens/.test(s)) return 'active'
+  if(/pend|provis|interim|conditional|application/.test(s)) return 'pending'
+  if(/expir|revok|suspend|cancel|void|denied/.test(s)) return 'expired'
+  return 'unknown'
+}
+function ntState(txt) {
+  const sts = ['MA','NJ','NY','PA','CT','RI','ME','NH','VT','MD','VA']
+  for(const s of sts) { if(new RegExp(`\\b${s}\\b`).test(txt)) return s }
+  return ''
+}
+
+// ─── Prospect management ────────────────────────────────
+function addProspects(arr) {
+  const key = p => {
+    const co = (p.businessName||'').toLowerCase().trim()
+    const ct = (p.contactName||'').toLowerCase().trim()
+    const st = (p.state||'').toUpperCase()
+    return ct ? `${co}|${ct}|${st}` : `${co}|${st}`
+  }
+  const ex = new Set(prospects.map(key))
+  let n = 0
+  for(const p of arr) {
+    if(!p.businessName) continue
+    const k = key(p)
+    if(!ex.has(k)) {
+      ex.add(k)
+      const dist = calcDist(p)
+      const rec = {...p, id: Math.random().toString(36).slice(2,9), dateAdded: today(), priorityScore: calcScore(p), distanceMiles: dist?.miles??null, distEstimated: dist?.estimated??true}
+      rec.classConfidence = calcConfidence(rec)
+      prospects.push(rec)
+      n++
+    }
+  }
+  save()
+  renderAll()
+  return n
+}
+
+function today() { return new Date().toISOString().split('T')[0] }
+
+function clearAll() {
+  if(!confirm('Clear all prospects? This cannot be undone.')) return
+  prospects = []
+  scrSt = {}
+  save()
+  renderAll()
+}
+
+// ─── Filtering / sorting ────────────────────────────────
+function getFiltered() {
+  const q = (document.getElementById('q').value||'').toLowerCase()
+  const fs = document.getElementById('fs').value
+  const ft = document.getElementById('ft').value
+  const fst = document.getElementById('fst').value
+  const fr = parseInt(document.getElementById('fr').value)||0
+  const fc = document.getElementById('fc').value
+  return prospects.filter(p => {
+    if(fs && p.state !== fs) return false
+    if(ft && p.entityType !== ft) return false
+    if(fst && p.licenseStatus !== fst) return false
+    if(fr && p.distanceMiles != null && p.distanceMiles > fr) return false
+    if(fc === 'challenged' && !p.challenged) return false
+    if(fc && fc !== 'challenged' && !p.challenged && (p.classConfidence||'low') !== fc) return false
+    if(q && !((p.businessName||'').toLowerCase().includes(q)||(p.city||'').toLowerCase().includes(q)||(p.address||'').toLowerCase().includes(q)||(p.contactName||'').toLowerCase().includes(q))) return false
+    return true
+  }).sort((a,b) => {
+    const av = a[sortF]??'', bv = b[sortF]??''
+    return av < bv ? sortD : av > bv ? -sortD : 0
+  })
+}
+
+function sortBy(f) {
+  if(sortF === f) sortD *= -1; else { sortF = f; sortD = -1 }
+  render()
+}
+
+// ─── Badge helpers ───────────────────────────────────────
+function typeBadge(t) {
+  const cls = t==='cultivator'?'bg-cul':t==='processor'?'bg-pro':'bg-lab'
+  const lbl = t==='cultivator'?'Cultivator':t==='processor'?'Processor':t==='testing_lab'?'Testing lab':t||'—'
+  return `<span class="bg ${cls}">${lbl}</span>`
+}
+function statusBadge(s) {
+  const cls = s==='active'?'bg-act':s==='pending'?'bg-pen':s==='expired'?'bg-exp':'bg-unk'
+  return `<span class="bg ${cls}">${s||'unknown'}</span>`
+}
+function confBadge(p) {
+  if(p.challenged) return `<span class="conf-corr">corrected</span>`
+  const c = p.classConfidence||'low'
+  if(c==='high')   return `<span class="conf-high">confirmed</span>`
+  if(c==='medium') return `<span class="conf-med">likely</span>`
+  return `<span class="conf-low">guessed</span>`
+}
+function typeLabel(t) { return t==='cultivator'?'Cultivator':t==='processor'?'Processor':t==='testing_lab'?'Testing lab':t==='dispensary'?'Dispensary':t||'' }
+function thH(f, label) {
+  const cls = sortF===f ? (sortD===-1?'sort-desc':'sort-asc') : ''
+  return `<th class="${cls}" onclick="sortBy('${f}')">${label}</th>`
+}
+
+// ─── Render stats ────────────────────────────────────────
+function renderStats() {
+  const companies = new Set(prospects.map(p => (p.businessName||'').toLowerCase()+'|'+(p.state||'')))
+  const contacts  = prospects.filter(p => p.contactName).length
+  const emails    = prospects.filter(p => p.email).length
+  const phones    = prospects.filter(p => p.phone).length
+  const active    = prospects.filter(p => p.licenseStatus==='active').length
+  const needsRev  = prospects.filter(p => !p.challenged && (p.classConfidence||'low')==='low').length
+  const challenged= prospects.filter(p => p.challenged).length
+
+  document.getElementById('s-companies').textContent    = companies.size
+  document.getElementById('s-contacts-sub').textContent = contacts + ' individual contacts'
+  document.getElementById('s-emails').textContent       = emails
+  document.getElementById('s-phones-sub').textContent   = phones + ' with phone'
+  document.getElementById('s-act').textContent          = active
+  document.getElementById('s-review').textContent       = needsRev
+  document.getElementById('s-challenged').textContent   = challenged
+
+  // Type breakdown with confidence
+  const types = {cultivator:{label:'Cultivators',color:'var(--green)'},processor:{label:'Processors',color:'var(--blue)'},testing_lab:{label:'Testing labs',color:'var(--purple)'},dispensary:{label:'Dispensaries',color:'var(--amber)'},other:{label:'Other',color:'var(--muted)'}}
+  const breakdown = Object.entries(types).map(([type, cfg]) => {
+    const all   = prospects.filter(p => p.entityType===type)
+    const high  = all.filter(p => (p.classConfidence==='high'||p.challenged)).length
+    const total = all.length
+    if(!total) return ''
+    return `<span style="display:flex;align-items:center;gap:5px">
+      <span style="font-weight:500;color:${cfg.color}">${cfg.label}</span>
+      <span style="color:var(--text)">${total}</span>
+      <span style="color:var(--muted);font-size:12px">(${high} confirmed)</span>
+    </span>`
+  }).filter(Boolean).join('<span style="color:var(--border2);margin:0 4px">|</span>')
+  document.getElementById('type-row').innerHTML = breakdown
+
+  // State pills
+  const bySt = {}
+  for(const p of prospects) bySt[p.state] = (bySt[p.state]||0)+1
+  const sorted = Object.entries(bySt).sort((a,b) => (SP[a[0]]||99)-(SP[b[0]]||99))
+  document.getElementById('spills').innerHTML = sorted.map(([s,c]) =>
+    `<div class="spill"><b>${s}</b><span>${c}</span></div>`
+  ).join('')
+
+  // Show/hide reclassify bar
+  const bar = document.getElementById('rebatch-bar')
+  if(bar) {
+    if(needsRev > 0) {
+      bar.style.display = 'flex'
+      document.getElementById('rebatch-count').textContent = `${needsRev} records have low-confidence classifications.`
+    } else {
+      bar.style.display = 'none'
+    }
+  }
+}
+
+// ─── Render table ────────────────────────────────────────
+function render() {
+  const rows = getFiltered()
+  document.getElementById('rc').textContent = rows.length + ' result' + (rows.length!==1?'s':'')
+  if(!prospects.length) {
+    document.getElementById('tbl').innerHTML = `<div style="text-align:center;padding:60px;color:var(--muted)"><div style="font-size:36px;margin-bottom:12px">📋</div><div style="font-size:15px;margin-bottom:6px;color:var(--text)">No prospects yet</div><div style="font-size:14px">Import from Excel, Google Maps, or scrape state databases</div></div>`
+    return
+  }
+  const disp = rows.slice(0,500)
+  document.getElementById('tbl').innerHTML = `<table>
+    <thead><tr>
+      ${thH('priorityScore','Score')}
+      ${thH('distanceMiles','Distance')}
+      ${thH('businessName','Business name')}
+      ${thH('entityType','Type')}
+      ${thH('state','State')}
+      ${thH('city','City')}
+      ${thH('licenseStatus','Status')}
+      <th>License #</th><th>Phone</th><th>Email</th><th>Contact</th><th>Title</th><th>Confidence</th><th></th>
+    </tr></thead>
+    <tbody>${disp.map(p => `<tr>
+      <td style="white-space:nowrap">
+        <div class="sc-wrap">
+          <span class="sc-num" style="color:${scColor(p.priorityScore)}">${p.priorityScore}</span>
+          <div class="sc-bar"><div class="sc-fill" style="width:${p.priorityScore}%;background:${scColor(p.priorityScore)}"></div></div>
+        </div>
+      </td>
+      <td style="white-space:nowrap;color:var(--muted2);font-size:13px">${p.distanceMiles!=null?`${p.distanceMiles} mi${p.distEstimated?'<span title="Estimated from state centroid" style="color:var(--muted);font-size:11px"> ~</span>':''}` :'—'}</td>
+      <td class="trunc" style="font-weight:500;max-width:200px">${p.businessName||''}</td>
+      <td>${typeBadge(p.entityType)}</td>
+      <td style="white-space:nowrap"><span style="font-weight:600;color:var(--accent)">${p.state||'?'}</span>${SP[p.state]?`<span style="font-size:10px;color:var(--muted);margin-left:3px">P${SP[p.state]}</span>`:''}</td>
+      <td style="color:var(--muted2)">${p.city||''}</td>
+      <td>${statusBadge(p.licenseStatus)}</td>
+      <td style="color:var(--muted);font-size:13px">${p.licenseNumber||'—'}</td>
+      <td style="color:var(--muted2);font-size:13px">${p.phone||'—'}</td>
+      <td style="color:var(--muted2);font-size:13px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.email||'—'}</td>
+      <td style="color:var(--muted2);font-size:13px">${p.contactName||'—'}</td>
+      <td style="color:var(--muted2);font-size:13px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.contactTitle||'—'}</td>
+      <td style="white-space:nowrap">${confBadge(p)}${p.challengeNote?`<span title="${p.challengeNote}" style="color:var(--muted);font-size:11px;margin-left:4px">ⓘ</span>`:''}</td>
+      <td><button class="btn-ch" onclick="openChallenge('${p.id}')" title="Challenge this classification">&#9873;</button></td>
+    </tr>`).join('')}</tbody>
+  </table>${rows.length>500?`<div style="text-align:center;padding:10px;font-size:12px;color:var(--muted)">Showing 500 of ${rows.length} — export to Excel to see all</div>`:''}`
+}
+
+// ─── Render DB list ──────────────────────────────────────
+function renderDBList() {
+  document.getElementById('dblist').innerHTML = DBS.map(db => {
+    const st = scrSt[db.s] || {status:'idle'}
+    const cnt = prospects.filter(p=>p.state===db.s).length
+    let btnHtml
+    if(st.status==='loading') {
+      btnHtml = `<span class="scrape-loading" style="font-size:12px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:6px"><span class="spin"></span>Searching…</span>`
+    } else if(st.status==='done') {
+      btnHtml = `<button class="btn btn-done" onclick="doScrape('${db.s}','${db.n}','${db.url}')">Re-scrape</button>`
+    } else if(st.status==='error') {
+      btnHtml = `<span style="font-size:11px;color:var(--red)">Failed</span><button class="btn btn-scrape" onclick="doScrape('${db.s}','${db.n}','${db.url}')" style="margin-left:8px">Retry</button>`
+    } else {
+      btnHtml = `<button class="btn btn-scrape" onclick="doScrape('${db.s}','${db.n}','${db.url}')">Scrape</button>`
+    }
+    return `<div class="db-row">
+      <div class="p-dot">${db.p}</div>
+      <div class="db-info">
+        <div class="db-name"><span style="color:var(--accent);margin-right:8px">${db.s}</span>${db.n}</div>        <div class="db-url"><a href="${db.url}" target="_blank">${db.url}</a></div>
+      </div>
+      ${cnt>0?`<span style="font-size:14px;color:var(--green);white-space:nowrap;flex-shrink:0">${cnt} imported</span>`:''}
+      <div style="flex-shrink:0">${btnHtml}</div>
+    </div>`
+  }).join('')
+}
+
+function renderAll() { renderStats(); render(); renderDBList(); renderUploadLog() }
+
+// ─── Tab switching ────────────────────────────────────────
+function showTab(name, btn) {
+  ['list','import','states','intel'].forEach(t => {
+    document.getElementById('pane-'+t).style.display = t===name ? '' : 'none'
+  })
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('on'))
+  btn.classList.add('on')
+}
+
+// ─── Excel import ─────────────────────────────────────────
+function getUploader() {
+  return (document.getElementById('uploaderInitials').value||'').trim().toUpperCase().slice(0,4) || '—'
+}
+
+function logUpload(entry) {
+  try {
+    const log = JSON.parse(localStorage.getItem('ct_uploadlog')||'[]')
+    log.unshift(entry)
+    localStorage.setItem('ct_uploadlog', JSON.stringify(log.slice(0,50)))
+  } catch(e){}
+  renderUploadLog()
+}
+
+function clearUploadLog() {
+  if(!confirm('Clear upload history?')) return
+  try { localStorage.removeItem('ct_uploadlog') } catch(e){}
+  renderUploadLog()
+}
+
+function saveInitials() {
+  const v = (document.getElementById('uploaderInitials').value||'').toUpperCase()
+  try { localStorage.setItem('ct_initials', v) } catch(e){}
+}
+
+function renderUploadLog() {
+  const el = document.getElementById('uploadLog')
+  if(!el) return
+  let log = []
+  try { log = JSON.parse(localStorage.getItem('ct_uploadlog')||'[]') } catch(e){}
+  if(!log.length) {
+    el.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:10px 0">No files imported yet.</div>`
+    return
+  }
+  el.innerHTML = log.map(e => `
+    <div style="display:flex;align-items:center;gap:12px;padding:9px 14px;border:.5px solid var(--border);border-radius:6px;margin-bottom:6px;font-size:13px">
+      <div style="width:32px;height:32px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--accent);flex-shrink:0">${e.uploader||'—'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.filename}</div>
+        <div style="color:var(--muted);font-size:12px;margin-top:2px">${e.sheets ? e.sheets.join(', ') : e.source} &nbsp;·&nbsp; ${e.added} contacts added &nbsp;·&nbsp; ${e.totalRows} rows</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="color:var(--muted);font-size:12px">${e.date}</div>
+        <div style="color:var(--muted);font-size:11px">${e.time}</div>
+      </div>
+    </div>`).join('')
+}
+
+function doXL(e) {
+  const file = e.target.files[0]; if(!file) return
+  const uploader = getUploader()
+  const r = new FileReader()
+  r.onload = ev => {
+    try {
+      const wb = XLSX.read(ev.target.result, {type:'binary'})
+      let allMapped = [], totalRows = 0
+
+      for(const sheetName of wb.SheetNames) {
+        const ws = wb.Sheets[sheetName]
+        const rows = XLSX.utils.sheet_to_json(ws, {defval:''})
+        totalRows += rows.length
+
+        // Use 2-letter sheet tab as state hint
+        const sheetState = /^[A-Z]{2}$/i.test(sheetName.trim()) ? sheetName.trim().toUpperCase() : ''
+
+        const get = (row, ...keys) => {
+          for(const k of keys) {
+            for(const rk of Object.keys(row)) {
+              if(rk.toLowerCase().trim() === k.toLowerCase().trim()) {
+                const v = row[rk]
+                return v != null ? v.toString().trim() : ''
+              }
+            }
+          }
+          return ''
+        }
+
+        allMapped = allMapped.concat(rows.map(row => {
+          // Handle split first/last name columns
+          const fn = get(row,'contact first name','first name','firstname')
+          const ln = get(row,'contact last name','last name','lastname')
+          const contactName = [fn,ln].filter(Boolean).join(' ') ||
+                              get(row,'contact name','contact','representative','owner')
+
+          const title = get(row,'contact job title','job title','title','contact title','position','role','contact seniority')
+          const addr  = get(row,'company address','company hq address','company hq','address','street address')
+
+          // Extract city from "Street, City, State, Country, Zip" format
+          const addrParts = addr.split(',').map(s=>s.trim())
+          const city = addrParts.length >= 2 ? addrParts[1] : get(row,'city','municipality','town')
+
+          // State: sheet name > column > parsed from address
+          const stateCol  = (get(row,'contact state','state','company state','st')||'').toUpperCase().trim().slice(0,2)
+          const state = sheetState || stateCol || ntState(addr)
+
+          // Phone: prefer direct contact line, fall back to company
+          const phone = get(row,'contact phone','phone','contactphone') ||
+                        get(row,'contact work phone','work phone') ||
+                        get(row,'company hq phone','company phone')
+
+          return {
+            businessName:  get(row,'company name','company','business name','dba','licensee')||'',
+            contactName,
+            contactTitle:  title,
+            entityType:    ntType(title + ' ' + get(row,'company name','company','business name')),
+            state, city,   address: addr,
+            phone,
+            email:         get(row,'contact work email','work email','email','contact email')||'',
+            website:       get(row,'company display domain','website','company website','domain','url')||'',
+            linkedIn:      get(row,'contact linkedin url','linkedin url','linkedin','contact linkedin')||'',
+            companyLinkedIn: get(row,'company linkedin')||'',
+            licenseStatus: ntStatus(get(row,'status','license status','lic status','active?')),
+            licenseNumber: get(row,'license number','license #','license','lic #')||'',
+            source:        'excel_' + sheetName.toLowerCase(),
+            notes:         get(row,'notes','comments','memo')||''
+          }
+        }).filter(p => p.businessName))
+      }
+
+      const added = addProspects(allMapped)
+      const now = new Date()
+      logUpload({
+        filename: file.name,
+        date: now.toLocaleDateString(),
+        time: now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),
+        uploader,
+        sheets: wb.SheetNames,
+        totalRows,
+        added,
+        source: 'excel'
+      })
+      document.getElementById('es').className = 'status-ok'
+      document.getElementById('es').textContent =
+        `✓ Added ${added} contacts from ${totalRows} rows across ${wb.SheetNames.length} sheet${wb.SheetNames.length!==1?'s':''}`
+      // Reset file input so same file can be re-imported if needed
+      e.target.value = ''
+    } catch(err) {
+      document.getElementById('es').className = 'status-err'
+      document.getElementById('es').textContent = 'Error reading file: ' + err.message
+      console.error(err)
+    }
+  }
+  r.readAsBinaryString(file)
+}
+
+// ─── Google Maps import ───────────────────────────────────
+function doGM() {
+  const raw = (document.getElementById('gm').value||'').trim()
+  if(!raw) { document.getElementById('gms').textContent='Nothing to import'; return }
+  let parsed = []
+  if(raw.includes('<Placemark') || raw.includes('<kml')) {
+    const kml = new DOMParser().parseFromString(raw, 'text/xml')
+    kml.querySelectorAll('Placemark').forEach(pm => {
+      const name = (pm.querySelector('name')?.textContent||'').trim()
+      const desc = (pm.querySelector('description')?.textContent||'').trim()
+      const addr = (pm.querySelector('address')?.textContent||'').trim()
+      if(name) parsed.push({
+        businessName:name, address:addr, notes:desc, source:'google_maps',
+        state:ntState(addr+' '+desc), city:'',
+        entityType:ntType(name+' '+desc), licenseStatus:'unknown',
+        licenseNumber:'',phone:'',email:'',website:'',contactName:''
+      })
+    })
+  } else {
+    raw.split('\n').filter(l=>l.trim()).forEach(line => {
+      const parts = line.split(',').map(s=>s.trim())
+      const st = (parts[2]||ntState(line)||'').toUpperCase().slice(0,2)
+      parsed.push({
+        businessName:parts[0]||'', city:parts[1]||'', state:st,
+        address:parts.slice(1).join(', '), source:'google_maps',
+        entityType:ntType(parts[0]||''), licenseStatus:'unknown',
+        licenseNumber:'',phone:'',email:'',website:'',contactName:'',notes:''
+      })
+    })
+  }
+  const added = addProspects(parsed.filter(p=>p.businessName))
+  const el = document.getElementById('gms')
+  el.className = 'status-ok'
+  el.textContent = `✓ Added ${added} prospects`
+  document.getElementById('gm').value = ''
+  const now = new Date()
+  logUpload({
+    filename: 'Google Maps paste',
+    date: now.toLocaleDateString(),
+    time: now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),
+    uploader: getUploader(),
+    sheets: ['Maps'],
+    totalRows: parsed.length,
+    added,
+    source: 'google_maps'
+  })
+}
+
+// ─── State scraping ───────────────────────────────────────
+async function doScrape(sc, sn, url) {
+  const apiKey = getKey()
+  if(!apiKey) {
+    alert('Please enter your Anthropic API key in the bar at the top of the page before scraping.\n\nGet a free key at console.anthropic.com')
+    return
+  }
+  scrSt[sc] = {status:'loading'}
+  renderDBList()
+
+  const prompt = `Search the web for cannabis businesses currently licensed in ${sn} (${sc}). Use the official state cannabis authority database at ${url} and any other official government sources.
+
+Return ONLY a JSON array — no markdown, no preamble, no explanation, no backticks. ONLY the raw JSON array starting with [ and ending with ]:
+[{"businessName":"Example Farm LLC","licenseNumber":"MC-2024-001","entityType":"cultivator","city":"Springfield","state":"${sc}","address":"123 Main St, Springfield, ${sc} 01001","phone":"413-555-0100","email":"info@example.com","website":"","licenseStatus":"active","lat":42.1015,"lng":-72.5898}]
+
+Important rules:
+- entityType must be EXACTLY one of: "cultivator", "processor", or "testing_lab"
+- licenseStatus must be EXACTLY one of: "active", "pending", "expired", or "unknown"  
+- Include ALL three license types found: cultivators/growers/farms, processors/manufacturers/extractors/MIPs, and testing/analytical labs
+- Only include businesses actually in ${sc}
+- Aim for 20 to 100+ entries
+- Include lat and lng (decimal degree coordinates) for each business address when you can determine them
+- Return ONLY the JSON array, nothing else before or after`
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:5000,
+        tools:[{type:'web_search_20250305',name:'web_search'}],
+        messages:[{role:'user',content:prompt}]
+      })
+    })
+    const data = await res.json()
+    if(data.error) throw new Error(data.error.message)
+
+    const txt = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('')
+    const m = txt.match(/\[[\s\S]*\]/)
+    if(!m) throw new Error('No JSON array found in response')
+    let parsed; try { parsed = JSON.parse(m[0]) } catch(e) { throw new Error('JSON parse failed: '+e.message) }
+    if(!Array.isArray(parsed) || !parsed.length) throw new Error('Empty or invalid array returned')
+
+    const mapped = parsed.map(p => ({
+      businessName: (p.businessName||p.name||'').trim(),
+      licenseNumber: p.licenseNumber||'',
+      entityType: ntType(p.entityType||''),
+      state: (p.state||sc).toUpperCase().slice(0,2),
+      city: p.city||'', address: p.address||'',
+      phone: p.phone||'', email: p.email||'',
+      website: p.website||'', contactName: p.contactName||'',
+      contactTitle: p.contactTitle||'',
+      linkedIn: p.linkedIn||'',
+      lat: p.lat||null, lng: p.lng||null,
+      licenseStatus: ntStatus(p.licenseStatus||''),
+      source: 'state_'+sc.toLowerCase(), notes:''
+    })).filter(p => p.businessName)
+
+    const added = addProspects(mapped)
+    scrSt[sc] = {status:'done', count:added}
+  } catch(err) {
+    console.error('Scrape error:', err)
+    scrSt[sc] = {status:'error', msg:err.message}
+  }
+  renderDBList()
+}
+
+// ─── Challenge functions ──────────────────────────────────
+let challengeId = null
+
+function openChallenge(id) {
+  const p = prospects.find(x => x.id === id)
+  if(!p) return
+  challengeId = id
+  const typeLabels = {cultivator:'Cultivator',processor:'Processor',testing_lab:'Testing lab',dispensary:'Dispensary',other:'Other'}
+  document.getElementById('modal-company').textContent = p.businessName + (p.state ? ` · ${p.state}` : '')
+  document.getElementById('modal-current').textContent = typeLabels[p.entityType] || p.entityType || '—'
+  document.getElementById('challengeType').value = p.entityType || 'cultivator'
+  document.getElementById('challengeNote').value = p.challengeNote || ''
+  document.getElementById('challengeModal').classList.add('open')
+}
+
+function closeChallenge() {
+  document.getElementById('challengeModal').classList.remove('open')
+  challengeId = null
+}
+
+function saveChallenge() {
+  const p = prospects.find(x => x.id === challengeId)
+  if(!p) return
+  p.entityType      = document.getElementById('challengeType').value
+  p.challenged      = true
+  p.classConfidence = 'challenged'
+  p.challengeNote   = document.getElementById('challengeNote').value.trim()
+  p.priorityScore   = calcScore(p)
+  save()
+  renderAll()
+  closeChallenge()
+}
+
+// ─── Batch AI reclassify ──────────────────────────────────
+async function batchReclassify() {
+  const apiKey = getKey()
+  if(!apiKey) { alert('Enter your Anthropic API key first.'); return }
+
+  const lowConf = prospects.filter(p => !p.challenged && (p.classConfidence||'low') === 'low')
+  if(!lowConf.length) { alert('No low-confidence records to reclassify.'); return }
+
+  const batch = lowConf.slice(0, 50) // process up to 50 at a time
+  const statusEl = document.getElementById('rebatch-status')
+  statusEl.textContent = `Analyzing ${batch.length} companies…`
+
+  const companyList = [...new Set(batch.map(p => p.businessName))].slice(0, 40)
+  const prompt = `You are classifying cannabis industry companies. For each company name below, determine what type of cannabis business it is based on the company name alone.
+
+Companies to classify:
+${companyList.map((n,i) => `${i+1}. ${n}`).join('\n')}
+
+Return ONLY a JSON array, no other text:
+[{"name":"Company Name Here","type":"cultivator","confidence":"high","reason":"brief reason"}]
+
+type must be EXACTLY one of: "cultivator", "processor", "testing_lab", "dispensary", "other"
+confidence must be EXACTLY one of: "high", "medium", "low"
+If you cannot determine the type from the name alone, use "other" with confidence "low".`
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514', max_tokens:3000,
+        tools:[{type:'web_search_20250305',name:'web_search'}],
+        messages:[{role:'user',content:prompt}]
+      })
+    })
+    const data = await res.json()
+    if(data.error) throw new Error(data.error.message)
+    const txt = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('')
+    const m = txt.match(/\[[\s\S]*\]/)
+    if(!m) throw new Error('No JSON found')
+    const results = JSON.parse(m[0])
+
+    let updated = 0
+    for(const r of results) {
+      const matches = prospects.filter(p => !p.challenged && p.businessName === r.name && (p.classConfidence||'low') === 'low')
+      for(const p of matches) {
+        if(r.type && r.type !== p.entityType) {
+          p.entityType = r.type
+          p.classConfidence = r.confidence === 'high' ? 'medium' : 'low' // AI is medium at best
+          p.challengeNote = `AI reclassified: ${r.reason||''}`
+          p.priorityScore = calcScore(p)
+          updated++
+        } else if(r.confidence === 'high') {
+          p.classConfidence = 'medium' // bump up if AI is confident
+        }
+      }
+    }
+    save()
+    renderAll()
+    statusEl.textContent = `✓ Updated ${updated} records. Review and challenge any that still look wrong.`
+  } catch(err) {
+    statusEl.textContent = `Error: ${err.message}`
+    console.error(err)
+  }
+}
+
+
+function exportExcel() {
+  const rows = getFiltered()
+  if(!rows.length) { alert('No prospects to export.'); return }
+  const data = rows.map(p => ({
+    'Priority score': p.priorityScore,
+    'Distance (mi)': p.distanceMiles != null ? p.distanceMiles + (p.distEstimated ? ' ~est' : '') : '',
+    'Business name': p.businessName,
+    'Type': typeLabel(p.entityType),
+    'State': p.state,
+    'City': p.city,
+    'Address': p.address,
+    'License #': p.licenseNumber,
+    'Status': p.licenseStatus,
+    'Contact name': p.contactName,
+    'Contact title': p.contactTitle||'',
+    'Phone': p.phone,
+    'Email': p.email,
+    'LinkedIn': p.linkedIn||'',
+    'Website': p.website,
+    'Source': p.source,
+    'Notes': p.notes,
+    'Date added': p.dateAdded
+  }))
+  const ws = XLSX.utils.json_to_sheet(data)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Prospects')
+  XLSX.writeFile(wb, 'CLEANTheory_Prospects_' + today() + '.xlsx')
+}
+
+// ─── Init ─────────────────────────────────────────────────
+load()
+const savedKey = localStorage.getItem('ct_apikey')||''
+if(savedKey) {
+  document.getElementById('apiKey').value = savedKey
+  document.getElementById('keyOk').style.display = ''
+}
+const savedInitials = localStorage.getItem('ct_initials')||''
+if(savedInitials) document.getElementById('uploaderInitials').value = savedInitials
+document.getElementById('uploaderInitials').addEventListener('input', saveInitials)
+
+// Restore GitHub credentials
+const savedGhToken  = localStorage.getItem('ct_ghtoken')||''
+const savedGhGistId = localStorage.getItem('ct_gistid')||''
+if(savedGhToken)  document.getElementById('ghToken').value  = savedGhToken
+if(savedGhGistId) document.getElementById('ghGistId').value = savedGhGistId
+updateSyncUI()
+
+renderAll()
+
+// Auto-sync from Gist on startup if configured
+if(savedGhToken && savedGhGistId) {
+  setSyncStatus('idle', 'Connecting to shared database…')
+  setTimeout(syncNow, 800)
+}
+</script>
+</body>
+</html>
