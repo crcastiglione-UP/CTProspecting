@@ -238,6 +238,15 @@ textarea:focus{border-color:var(--accent)}
   <!-- PANE: Import -->
   <div class="pane" id="pane-import" style="display:none;max-width:700px">
 
+    <div class="import-card" style="display:flex;align-items:center;gap:14px;padding:14px 20px">
+      <div style="font-size:13px;color:var(--muted);white-space:nowrap;flex-shrink:0">Your initials <span style="color:var(--muted);font-size:12px">(optional)</span></div>
+      <input type="text" id="uploaderInitials" placeholder="e.g. CE" maxlength="4"
+             style="width:80px;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:.1em"
+             oninput="this.value=this.value.toUpperCase()"
+             title="Your initials are saved with each upload so teammates know who imported what">
+      <div style="font-size:12px;color:var(--muted)">Saved with each import so teammates know who uploaded what.</div>
+    </div>
+
     <div class="import-card">
       <div class="import-title">&#9635; Excel / CSV upload</div>
       <div class="import-hint">
@@ -268,6 +277,14 @@ textarea:focus{border-color:var(--accent)}
 
     <div class="info">
       Need help? If your spreadsheet uses different column names or a different layout, paste a few sample rows in the chat with Claude and ask for help mapping the columns before importing.
+    </div>
+
+    <div style="margin-top:20px">
+      <div style="font-size:14px;font-weight:500;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+        <span>Upload history</span>
+        <button class="btn btn-outline" style="font-size:11px;padding:3px 10px" onclick="clearUploadLog()">Clear log</button>
+      </div>
+      <div id="uploadLog"></div>
     </div>
   </div>
 
@@ -464,7 +481,12 @@ function ntState(txt) {
 
 // ─── Prospect management ────────────────────────────────
 function addProspects(arr) {
-  const key = p => ((p.businessName||'').toLowerCase().trim() + '|' + (p.state||'').toUpperCase())
+  const key = p => {
+    const co = (p.businessName||'').toLowerCase().trim()
+    const ct = (p.contactName||'').toLowerCase().trim()
+    const st = (p.state||'').toUpperCase()
+    return ct ? `${co}|${ct}|${st}` : `${co}|${st}`
+  }
   const ex = new Set(prospects.map(key))
   let n = 0
   for(const p of arr) {
@@ -566,7 +588,7 @@ function render() {
       ${thH('state','State')}
       ${thH('city','City')}
       ${thH('licenseStatus','Status')}
-      <th>License #</th><th>Phone</th><th>Email</th><th>Contact</th><th>Source</th>
+      <th>License #</th><th>Phone</th><th>Email</th><th>Contact</th><th>Title</th><th>Source</th>
     </tr></thead>
     <tbody>${disp.map(p => `<tr>
       <td style="white-space:nowrap">
@@ -585,7 +607,8 @@ function render() {
       <td style="color:var(--muted2);font-size:13px">${p.phone||'—'}</td>
       <td style="color:var(--muted2);font-size:13px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.email||'—'}</td>
       <td style="color:var(--muted2);font-size:13px">${p.contactName||'—'}</td>
-      <td style="color:var(--muted);font-size:13px;white-space:nowrap">${(p.source||'').replace('state_','').toUpperCase()}</td>
+      <td style="color:var(--muted2);font-size:13px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.contactTitle||'—'}</td>
+      <td style="color:var(--muted);font-size:13px;white-space:nowrap">${(p.source||'').replace('state_','').replace('excel_','').toUpperCase()}</td>
     </tr>`).join('')}</tbody>
   </table>${rows.length>500?`<div style="text-align:center;padding:10px;font-size:12px;color:var(--muted)">Showing 500 of ${rows.length} — export to Excel to see all</div>`:''}`
 }
@@ -616,7 +639,7 @@ function renderDBList() {
   }).join('')
 }
 
-function renderAll() { renderStats(); render(); renderDBList() }
+function renderAll() { renderStats(); render(); renderDBList(); renderUploadLog() }
 
 // ─── Tab switching ────────────────────────────────────────
 function showTab(name, btn) {
@@ -628,43 +651,143 @@ function showTab(name, btn) {
 }
 
 // ─── Excel import ─────────────────────────────────────────
+function getUploader() {
+  return (document.getElementById('uploaderInitials').value||'').trim().toUpperCase().slice(0,4) || '—'
+}
+
+function logUpload(entry) {
+  try {
+    const log = JSON.parse(localStorage.getItem('ct_uploadlog')||'[]')
+    log.unshift(entry)
+    localStorage.setItem('ct_uploadlog', JSON.stringify(log.slice(0,50)))
+  } catch(e){}
+  renderUploadLog()
+}
+
+function clearUploadLog() {
+  if(!confirm('Clear upload history?')) return
+  try { localStorage.removeItem('ct_uploadlog') } catch(e){}
+  renderUploadLog()
+}
+
+function saveInitials() {
+  const v = (document.getElementById('uploaderInitials').value||'').toUpperCase()
+  try { localStorage.setItem('ct_initials', v) } catch(e){}
+}
+  const el = document.getElementById('uploadLog')
+  if(!el) return
+  let log = []
+  try { log = JSON.parse(localStorage.getItem('ct_uploadlog')||'[]') } catch(e){}
+  if(!log.length) {
+    el.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:10px 0">No files imported yet.</div>`
+    return
+  }
+  el.innerHTML = log.map(e => `
+    <div style="display:flex;align-items:center;gap:12px;padding:9px 14px;border:.5px solid var(--border);border-radius:6px;margin-bottom:6px;font-size:13px">
+      <div style="width:32px;height:32px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--accent);flex-shrink:0">${e.uploader||'—'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.filename}</div>
+        <div style="color:var(--muted);font-size:12px;margin-top:2px">${e.sheets ? e.sheets.join(', ') : e.source} &nbsp;·&nbsp; ${e.added} contacts added &nbsp;·&nbsp; ${e.totalRows} rows</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="color:var(--muted);font-size:12px">${e.date}</div>
+        <div style="color:var(--muted);font-size:11px">${e.time}</div>
+      </div>
+    </div>`).join('')
+}
+
 function doXL(e) {
   const file = e.target.files[0]; if(!file) return
+  const uploader = getUploader()
   const r = new FileReader()
   r.onload = ev => {
     try {
       const wb = XLSX.read(ev.target.result, {type:'binary'})
-      const ws = wb.Sheets[wb.SheetNames[0]]
-      const rows = XLSX.utils.sheet_to_json(ws, {defval:''})
-      const get = (row, ...keys) => {
-        for(const k of keys) {
-          for(const rk of Object.keys(row)) {
-            if(rk.toLowerCase().trim() === k.toLowerCase()) return (row[rk]||'').toString().trim()
+      let allMapped = [], totalRows = 0
+
+      for(const sheetName of wb.SheetNames) {
+        const ws = wb.Sheets[sheetName]
+        const rows = XLSX.utils.sheet_to_json(ws, {defval:''})
+        totalRows += rows.length
+
+        // Use 2-letter sheet tab as state hint
+        const sheetState = /^[A-Z]{2}$/i.test(sheetName.trim()) ? sheetName.trim().toUpperCase() : ''
+
+        const get = (row, ...keys) => {
+          for(const k of keys) {
+            for(const rk of Object.keys(row)) {
+              if(rk.toLowerCase().trim() === k.toLowerCase().trim()) {
+                const v = row[rk]
+                return v != null ? v.toString().trim() : ''
+              }
+            }
           }
+          return ''
         }
-        return ''
+
+        allMapped = allMapped.concat(rows.map(row => {
+          // Handle split first/last name columns
+          const fn = get(row,'contact first name','first name','firstname')
+          const ln = get(row,'contact last name','last name','lastname')
+          const contactName = [fn,ln].filter(Boolean).join(' ') ||
+                              get(row,'contact name','contact','representative','owner')
+
+          const title = get(row,'contact job title','job title','title','contact title','position','role','contact seniority')
+          const addr  = get(row,'company address','company hq address','company hq','address','street address')
+
+          // Extract city from "Street, City, State, Country, Zip" format
+          const addrParts = addr.split(',').map(s=>s.trim())
+          const city = addrParts.length >= 2 ? addrParts[1] : get(row,'city','municipality','town')
+
+          // State: sheet name > column > parsed from address
+          const stateCol  = (get(row,'contact state','state','company state','st')||'').toUpperCase().trim().slice(0,2)
+          const state = sheetState || stateCol || ntState(addr)
+
+          // Phone: prefer direct contact line, fall back to company
+          const phone = get(row,'contact phone','phone','contactphone') ||
+                        get(row,'contact work phone','work phone') ||
+                        get(row,'company hq phone','company phone')
+
+          return {
+            businessName:  get(row,'company name','company','business name','dba','licensee')||'',
+            contactName,
+            contactTitle:  title,
+            entityType:    ntType(title + ' ' + get(row,'company name','company','business name')),
+            state, city,   address: addr,
+            phone,
+            email:         get(row,'contact work email','work email','email','contact email')||'',
+            website:       get(row,'company display domain','website','company website','domain','url')||'',
+            linkedIn:      get(row,'contact linkedin url','linkedin url','linkedin','contact linkedin')||'',
+            companyLinkedIn: get(row,'company linkedin')||'',
+            licenseStatus: ntStatus(get(row,'status','license status','lic status','active?')),
+            licenseNumber: get(row,'license number','license #','license','lic #')||'',
+            source:        'excel_' + sheetName.toLowerCase(),
+            notes:         get(row,'notes','comments','memo')||''
+          }
+        }).filter(p => p.businessName))
       }
-      const mapped = rows.map(row => ({
-        businessName: get(row,'business name','name','company','dba','licensee')||'',
-        licenseNumber: get(row,'license number','license #','license','lic #','lic number','license_number')||'',
-        entityType: ntType(get(row,'type','license type','entity type','category','license category')),
-        state: (get(row,'state','st','state code')||'').toUpperCase().trim(),
-        city: get(row,'city','municipality','town','city/town')||'',
-        address: get(row,'address','street address','street','full address')||'',
-        phone: get(row,'phone','telephone','tel','phone number','phone #')||'',
-        email: get(row,'email','email address','e-mail','contact email')||'',
-        website: get(row,'website','url','web','web address','site')||'',
-        contactName: get(row,'contact','contact name','owner','primary contact','representative')||'',
-        licenseStatus: ntStatus(get(row,'status','license status','lic status','active?')),
-        source: 'excel',
-        notes: get(row,'notes','comments','notes/comments','memo')||''
-      })).filter(p => p.businessName)
-      const added = addProspects(mapped)
+
+      const added = addProspects(allMapped)
+      const now = new Date()
+      logUpload({
+        filename: file.name,
+        date: now.toLocaleDateString(),
+        time: now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),
+        uploader,
+        sheets: wb.SheetNames,
+        totalRows,
+        added,
+        source: 'excel'
+      })
       document.getElementById('es').className = 'status-ok'
-      document.getElementById('es').textContent = `✓ Added ${added} of ${rows.length} rows`
+      document.getElementById('es').textContent =
+        `✓ Added ${added} contacts from ${totalRows} rows across ${wb.SheetNames.length} sheet${wb.SheetNames.length!==1?'s':''}`
+      // Reset file input so same file can be re-imported if needed
+      e.target.value = ''
     } catch(err) {
       document.getElementById('es').className = 'status-err'
-      document.getElementById('es').textContent = 'Error: ' + err.message
+      document.getElementById('es').textContent = 'Error reading file: ' + err.message
+      console.error(err)
     }
   }
   r.readAsBinaryString(file)
@@ -812,6 +935,9 @@ if(savedKey) {
   document.getElementById('apiKey').value = savedKey
   document.getElementById('keyOk').style.display = ''
 }
+const savedInitials = localStorage.getItem('ct_initials')||''
+if(savedInitials) document.getElementById('uploaderInitials').value = savedInitials
+document.getElementById('uploaderInitials').addEventListener('input', saveInitials)
 renderAll()
 </script>
 </body>
