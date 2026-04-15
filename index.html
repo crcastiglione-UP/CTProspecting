@@ -182,7 +182,7 @@ textarea:focus{border-color:var(--accent)}
   <div class="topbar">
     <div style="font-family:'Duplet',sans-serif;font-size:22px;font-weight:700;white-space:nowrap;flex-shrink:0;letter-spacing:-.2px">
       <span style="color:var(--text)">CLEAN</span><span style="color:var(--accent)">Theory</span><span style="color:var(--muted);font-size:13px;font-weight:400;margin-left:14px;font-family:'IBM Plex Mono',monospace;letter-spacing:0">Prospect Intelligence</span>
-      <span style="color:var(--muted);font-size:10px;font-weight:400;margin-left:10px;font-family:'IBM Plex Mono',monospace;background:var(--surface2);padding:2px 7px;border-radius:4px;vertical-align:middle">v1.15 &nbsp;·&nbsp; Apr 15 2026</span>
+      <span style="color:var(--muted);font-size:10px;font-weight:400;margin-left:10px;font-family:'IBM Plex Mono',monospace;background:var(--surface2);padding:2px 7px;border-radius:4px;vertical-align:middle">v1.16 &nbsp;·&nbsp; Apr 15 2026</span>
     </div>
     <div class="topbar-mid">
       <div class="tab-nav">
@@ -1077,6 +1077,32 @@ function render() {
     return
   }
   const disp = rows.slice(0,500)
+  const escAttr = s => (s||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;')
+  const rowHtml = disp.map(p => {
+    try {
+      return `<tr>
+      <td style="white-space:nowrap">
+        <div class="sc-wrap">
+          <span class="sc-num" style="color:${scColor(p.priorityScore)}">${p.priorityScore}</span>
+          <div class="sc-bar"><div class="sc-fill" style="width:${p.priorityScore}%;background:${scColor(p.priorityScore)}"></div></div>
+        </div>
+      </td>
+      <td style="white-space:nowrap;color:var(--muted2);font-size:13px">${p.distanceMiles!=null?`${p.distanceMiles} mi${p.distEstimated?'<span style="color:var(--muted);font-size:11px"> ~</span>':''}` :'—'}</td>
+      <td class="trunc" style="font-weight:500;max-width:200px">${p.businessName||''}</td>
+      <td>${typeBadge(p.entityType)}</td>
+      <td style="white-space:nowrap"><span style="font-weight:600;color:var(--accent)">${p.state||'?'}</span>${SP[p.state]?`<span style="font-size:10px;color:var(--muted);margin-left:3px">P${SP[p.state]}</span>`:''}</td>
+      <td style="color:var(--muted2)">${p.city||''}</td>
+      <td>${statusBadge(p.licenseStatus)}</td>
+      <td style="color:var(--muted);font-size:13px">${p.licenseNumber||'—'}</td>
+      <td style="color:var(--muted2);font-size:13px">${p.phone||'—'}</td>
+      <td style="color:var(--muted2);font-size:13px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.email||'—'}</td>
+      <td style="color:var(--muted2);font-size:13px">${p.contactName||'—'}</td>
+      <td style="color:var(--muted2);font-size:13px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.contactTitle||'—'}</td>
+      <td style="white-space:nowrap">${confBadge(p)}${p.challengeNote?`<span title="${escAttr(p.challengeNote)}" style="color:var(--muted);font-size:11px;margin-left:4px">ⓘ</span>`:''}</td>
+      <td><button class="btn-ch" onclick="openChallenge('${p.id}')" title="Challenge">&#9873;</button><button class="btn-ch" onclick="deleteRecord('${p.id}')" title="Delete" style="color:var(--red)">&#10005;</button></td>
+    </tr>`
+    } catch(e) { return `<tr><td colspan="14" style="color:var(--red);font-size:12px;padding:6px 14px">Row error: ${e.message}</td></tr>` }
+  }).join('')
   document.getElementById('tbl').innerHTML = `<table>
     <thead><tr>
       ${thH('priorityScore','Score')}
@@ -1088,27 +1114,7 @@ function render() {
       ${thH('licenseStatus','Status')}
       <th>License #</th><th>Phone</th><th>Email</th><th>Contact</th><th>Title</th><th>Confidence</th><th></th>
     </tr></thead>
-    <tbody>${disp.map(p => `<tr>
-      <td style="white-space:nowrap">
-        <div class="sc-wrap">
-          <span class="sc-num" style="color:${scColor(p.priorityScore)}">${p.priorityScore}</span>
-          <div class="sc-bar"><div class="sc-fill" style="width:${p.priorityScore}%;background:${scColor(p.priorityScore)}"></div></div>
-        </div>
-      </td>
-      <td style="white-space:nowrap;color:var(--muted2);font-size:13px">${p.distanceMiles!=null?`${p.distanceMiles} mi${p.distEstimated?'<span title="Estimated from state centroid" style="color:var(--muted);font-size:11px"> ~</span>':''}` :'—'}</td>
-      <td class="trunc" style="font-weight:500;max-width:200px">${p.businessName||''}</td>
-      <td>${typeBadge(p.entityType)}</td>
-      <td style="white-space:nowrap"><span style="font-weight:600;color:var(--accent)">${p.state||'?'}</span>${SP[p.state]?`<span style="font-size:10px;color:var(--muted);margin-left:3px">P${SP[p.state]}</span>`:''}</td>
-      <td style="color:var(--muted2)">${p.city||''}</td>
-      <td>${statusBadge(p.licenseStatus)}</td>
-      <td style="color:var(--muted);font-size:13px">${p.licenseNumber||'—'}</td>
-      <td style="color:var(--muted2);font-size:13px">${p.phone||'—'}</td>
-      <td style="color:var(--muted2);font-size:13px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.email||'—'}</td>
-      <td style="color:var(--muted2);font-size:13px">${p.contactName||'—'}</td>
-      <td style="color:var(--muted2);font-size:13px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.contactTitle||'—'}</td>
-      <td style="white-space:nowrap">${confBadge(p)}${p.challengeNote?`<span title="${p.challengeNote}" style="color:var(--muted);font-size:11px;margin-left:4px">ⓘ</span>`:''}</td>
-      <td><button class="btn-ch" onclick="openChallenge('${p.id}')" title="Challenge this classification">&#9873;</button><button class="btn-ch" onclick="deleteRecord('${p.id}')" title="Delete this record" style="color:var(--red)">&#10005;</button></td>
-    </tr>`).join('')}</tbody>
+    <tbody>${rowHtml}</tbody>
   </table>${rows.length>500?`<div style="text-align:center;padding:10px;font-size:12px;color:var(--muted)">Showing 500 of ${rows.length} — export to Excel to see all</div>`:''}`
 }
 
