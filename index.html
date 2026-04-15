@@ -283,6 +283,7 @@ textarea:focus{border-color:var(--accent)}
       <input type="text" id="challengeNote" placeholder="e.g. Checked their website — extraction only, no cultivation">
       <div class="modal-acts">
         <button class="btn btn-outline" onclick="closeChallenge()">Cancel</button>
+        <button class="btn btn-outline" id="revertSingleBtn" onclick="revertSingle(challengeId)" style="display:none">&#8635; Revert to original</button>
         <button class="btn btn-primary" onclick="saveChallenge()" id="challengeSaveBtn">Save correction</button>
         <span id="challengeReadonlyNote" style="display:none;font-size:11px;color:var(--amber);align-self:center">⚠ Read-only — won't sync</span>
       </div>
@@ -352,7 +353,8 @@ textarea:focus{border-color:var(--accent)}
     <div id="rebatch-bar" style="display:none" class="rebatch-bar">
       <span id="rebatch-count"></span>
       <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" onclick="batchReclassify()">&#9889; Reclassify with AI</button>
-      <span style="font-size:12px;color:#b45309">Uses Claude web search to look up each company and correct their type.</span>
+      <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" onclick="revertAllAI()" id="revertAIBtn" style="display:none">&#8635; Revert AI changes</button>
+      <span style="font-size:12px;color:#b45309">Uses Claude to look up each company and correct their type.</span>
       <span id="rebatch-status" style="font-size:12px;margin-left:auto"></span>
     </div>
     <div class="tbl-wrap" id="tbl"></div>
@@ -880,9 +882,10 @@ function calcConfidence(p) {
 
 function ntType(t) {
   t = (t||'').toLowerCase()
-  if(/culti|grow|farm|plant|flower|tier\s*1|adult.use.*culti/.test(t)) return 'cultivator'
+  if(/culti|grow|farm|plant|flower|tier\s*1|adult.use.*culti|craft marijuana|microbusiness/.test(t)) return 'cultivator'
   if(/process|manufactur|product|extract|infus|tier\s*2|\bmip\b/.test(t)) return 'processor'
-  if(/\btest|\blab\b|analy|certif/.test(t)) return 'testing_lab'
+  if(/\btest|\blab\b|analy|certif|independent testing/.test(t)) return 'testing_lab'
+  if(/retail|dispens|store|shop/.test(t)) return 'dispensary'
   return 'cultivator'
 }
 function ntStatus(s) {
@@ -916,6 +919,7 @@ function addProspects(arr) {
       const dist = calcDist(p)
       const rec = {...p, id: Math.random().toString(36).slice(2,9), dateAdded: today(), priorityScore: calcScore(p), distanceMiles: dist?.miles??null, distEstimated: dist?.estimated??true}
       rec.classConfidence = calcConfidence(rec)
+      rec.originalEntityType = rec.entityType  // always preserve the import-time classification
       prospects.push(rec)
       n++
     }
@@ -1030,9 +1034,12 @@ function renderStats() {
   // Show/hide reclassify bar
   const bar = document.getElementById('rebatch-bar')
   if(bar) {
-    if(needsRev > 0) {
+    const aiCount = prospects.filter(p => p.aiReclassified).length
+    const revertBtn = document.getElementById('revertAIBtn')
+    if(needsRev > 0 || aiCount > 0) {
       bar.style.display = 'flex'
       document.getElementById('rebatch-count').textContent = `${needsRev} records have low-confidence classifications.`
+      if(revertBtn) revertBtn.style.display = aiCount > 0 ? '' : 'none'
     } else {
       bar.style.display = 'none'
     }
@@ -1190,7 +1197,30 @@ function doXL(e) {
 
       for(const sheetName of wb.SheetNames) {
         const ws = wb.Sheets[sheetName]
-        const rows = XLSX.utils.sheet_to_json(ws, {defval:''})
+        // Convert to array of arrays first so we can detect and skip title rows
+        const rawRows = XLSX.utils.sheet_to_json(ws, {defval:'', header:1})
+        if(!rawRows.length) continue
+
+        // Find the actual header row — look for the first row that has 3+ non-empty cells
+        // This handles files where Row 1 is a title like "Licensing Tracker - Cannabis Control Commission"
+        let headerRowIdx = 0
+        for(let i = 0; i < Math.min(5, rawRows.length); i++) {
+          const nonEmpty = rawRows[i].filter(c => c && c.toString().trim()).length
+          if(nonEmpty >= 3) { headerRowIdx = i; break }
+        }
+
+        // Build header map from the detected header row
+        const headers = rawRows[headerRowIdx].map(h => (h||'').toString().trim())
+
+        // Convert remaining rows to objects using detected headers
+        const rows = rawRows.slice(headerRowIdx + 1)
+          .filter(row => row.some(c => c && c.toString().trim()))
+          .map(row => {
+            const obj = {}
+            headers.forEach((h, i) => { if(h) obj[h] = (row[i]??'').toString().trim() })
+            return obj
+          })
+
         totalRows += rows.length
 
         // Use 2-letter sheet tab as state hint
@@ -1216,9 +1246,9 @@ function doXL(e) {
                               get(row,'contact name','contact','representative','owner')
 
           const title = get(row,'contact job title','job title','title','contact title','position','role','contact seniority')
-          const addr  = get(row,'company address','company hq address','company hq','address','street address')
+          const addr  = get(row,'company address','company hq address','company hq','address','street address','location','facility address')
 
-          // Extract city from "Street, City, State, Country, Zip" format
+          // Extract city from "Street, City, State, Country, Zip" or "Street City, ST Zip" format
           const addrParts = addr.split(',').map(s=>s.trim())
           const city = addrParts.length >= 2 ? addrParts[1] : get(row,'city','municipality','town')
 
@@ -1231,21 +1261,24 @@ function doXL(e) {
                         get(row,'contact work phone','work phone') ||
                         get(row,'company hq phone','company phone')
 
+          // Entity type: use License Type or Establishment Type columns if present
+          const licTypeCol = get(row,'license type','establishment type','type','entity type','category','license category')
+
           return {
-            businessName:  get(row,'company name','company','business name','dba','licensee')||'',
+            businessName:  get(row,'name','company name','company','business name','dba','licensee','establishment')||'',
             contactName,
             contactTitle:  title,
-            entityType:    ntType(title + ' ' + get(row,'company name','company','business name')),
+            entityType:    ntType(licTypeCol + ' ' + get(row,'company name','company','business name','name')),
             state, city,   address: addr,
             phone,
             email:         get(row,'contact work email','work email','email','contact email')||'',
             website:       get(row,'company display domain','website','company website','domain','url')||'',
             linkedIn:      get(row,'contact linkedin url','linkedin url','linkedin','contact linkedin')||'',
             companyLinkedIn: get(row,'company linkedin')||'',
-            licenseStatus: ntStatus(get(row,'status','license status','lic status','active?')),
-            licenseNumber: get(row,'license number','license #','license','lic #')||'',
+            licenseStatus: ntStatus(get(row,'status','license status','lic status','active?','establishment type')||'active'),
+            licenseNumber: get(row,'license number','license #','license','lic #','license_number')||'',
             source:        'excel_' + sheetName.toLowerCase(),
-            notes:         get(row,'notes','comments','memo')||''
+            notes:         get(row,'notes','comments','memo','priority/expedited status')||''
           }
         }).filter(p => p.businessName))
       }
@@ -1465,6 +1498,12 @@ function openChallenge(id) {
   document.getElementById('challengeNote').value = p.challengeNote || ''
   const roNote = document.getElementById('challengeReadonlyNote')
   if(roNote) roNote.style.display = isReadOnly ? 'block' : 'none'
+  const revertBtn = document.getElementById('revertSingleBtn')
+  if(revertBtn) {
+    const hasOriginal = p.originalEntityType && p.originalEntityType !== p.entityType
+    revertBtn.style.display = (hasOriginal || p.aiReclassified || p.challenged) ? '' : 'none'
+    if(p.originalEntityType) revertBtn.title = `Revert to original: ${p.originalEntityType}`
+  }
   document.getElementById('challengeModal').classList.add('open')
 }
 
@@ -1533,25 +1572,61 @@ If you cannot determine the type from the name alone, use "other" with confidenc
       const matches = prospects.filter(p => !p.challenged && p.businessName === r.name && (p.classConfidence||'low') === 'low')
       for(const p of matches) {
         if(r.type && r.type !== p.entityType) {
-          p.entityType = r.type
-          p.classConfidence = r.confidence === 'high' ? 'medium' : 'low' // AI is medium at best
-          p.challengeNote = `AI reclassified: ${r.reason||''}`
-          p.priorityScore = calcScore(p)
+          p.entityType      = r.type
+          p.classConfidence = r.confidence === 'high' ? 'medium' : 'low'
+          p.challengeNote   = `AI reclassified: ${r.reason||''}`
+          p.aiReclassified  = true
+          p.priorityScore   = calcScore(p)
           updated++
         } else if(r.confidence === 'high') {
-          p.classConfidence = 'medium' // bump up if AI is confident
+          p.classConfidence = 'medium'
         }
       }
     }
     save()
     renderAll()
-    statusEl.textContent = `✓ Updated ${updated} records. Review and challenge any that still look wrong.`
+    statusEl.textContent = `✓ Updated ${updated} records.`
+    const revertBtn = document.getElementById('revertAIBtn')
+    if(revertBtn && updated > 0) revertBtn.style.display = ''
   } catch(err) {
     statusEl.textContent = `Error: ${err.message}`
     console.error(err)
   }
 }
 
+
+// ─── Revert functions ─────────────────────────────────────
+function revertAllAI() {
+  const aiChanged = prospects.filter(p => p.aiReclassified)
+  if(!aiChanged.length) { alert('No AI reclassifications to revert.'); return }
+  if(!confirm(`Revert ${aiChanged.length} AI reclassifications back to their original import classifications?`)) return
+  for(const p of aiChanged) {
+    if(p.originalEntityType) {
+      p.entityType      = p.originalEntityType
+      p.aiReclassified  = false
+      p.classConfidence = 'low'
+      p.challengeNote   = ''
+      p.priorityScore   = calcScore(p)
+    }
+  }
+  save()
+  renderAll()
+  document.getElementById('rebatch-status').textContent = `✓ Reverted ${aiChanged.length} records to original classifications.`
+}
+
+function revertSingle(id) {
+  const p = prospects.find(x => x.id === id)
+  if(!p || !p.originalEntityType) return
+  p.entityType      = p.originalEntityType
+  p.challenged      = false
+  p.aiReclassified  = false
+  p.classConfidence = calcConfidence(p)
+  p.challengeNote   = ''
+  p.priorityScore   = calcScore(p)
+  save()
+  renderAll()
+  closeChallenge()
+}
 
 function exportExcel() {
   const rows = getFiltered()
