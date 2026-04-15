@@ -189,7 +189,7 @@ textarea:focus{border-color:var(--accent)}
   <div class="topbar">
     <div style="font-family:'Duplet',sans-serif;font-size:22px;font-weight:700;white-space:nowrap;flex-shrink:0;letter-spacing:-.2px">
       <span style="color:var(--text)">CLEAN</span><span style="color:var(--accent)">Theory</span><span style="color:var(--muted);font-size:13px;font-weight:400;margin-left:14px;font-family:'IBM Plex Mono',monospace;letter-spacing:0">Prospect Intelligence</span>
-      <span style="color:var(--muted);font-size:10px;font-weight:400;margin-left:10px;font-family:'IBM Plex Mono',monospace;background:var(--surface2);padding:2px 7px;border-radius:4px;vertical-align:middle">v1.20 &nbsp;·&nbsp; Apr 15 2026</span>
+      <span style="color:var(--muted);font-size:10px;font-weight:400;margin-left:10px;font-family:'IBM Plex Mono',monospace;background:var(--surface2);padding:2px 7px;border-radius:4px;vertical-align:middle">v1.22 &nbsp;·&nbsp; Apr 15 2026</span>
     </div>
     <div class="topbar-mid">
       <div class="tab-nav">
@@ -581,10 +581,157 @@ function haversine(lat1,lng1,lat2,lng2){
   return Math.round(R*2*Math.asin(Math.sqrt(a)))
 }
 
-function calcDist(p){
-  if(p.lat && p.lng) return {miles:haversine(HOME.lat,HOME.lng,+p.lat,+p.lng), estimated:false}
-  const c = CENTROIDS[p.state]
-  return c ? {miles:haversine(HOME.lat,HOME.lng,c.lat,c.lng), estimated:true} : null
+// City-level centroids for better distance estimates within MA and nearby states
+const CITY_CENTROIDS = {
+  'amesbury ma':[42.8584,-70.9298],'amherst ma':[42.3732,-72.5199],'andover ma':[42.6584,-71.137],
+  'arlington ma':[42.4154,-71.1565],'attleboro ma':[41.9445,-71.2856],'barnstable ma':[41.7003,-70.3002],
+  'beverly ma':[42.5584,-70.88],'boston ma':[42.3601,-71.0589],'bridgewater ma':[41.9901,-70.9751],
+  'brockton ma':[42.0834,-71.0184],'brookline ma':[42.3318,-71.1212],'cambridge ma':[42.3736,-71.1097],
+  'chelsea ma':[42.3918,-71.0328],'chicopee ma':[42.1487,-72.6079],'dedham ma':[42.2415,-71.1662],
+  'easthampton ma':[42.2668,-72.6679],'everett ma':[42.4084,-71.0537],'fall river ma':[41.7015,-71.155],
+  'fitchburg ma':[42.5834,-71.8023],'franklin ma':[42.0834,-71.3962],'gloucester ma':[42.6159,-70.662],
+  'greenfield ma':[42.5876,-72.5993],'haverhill ma':[42.7762,-71.0773],'holyoke ma':[42.2042,-72.6162],
+  'lawrence ma':[42.707,-71.1631],'leicester ma':[42.2459,-71.9073],'leominster ma':[42.5251,-71.7598],
+  'lowell ma':[42.6334,-71.3162],'lynn ma':[42.4668,-70.9495],'malden ma':[42.4251,-71.0662],
+  'marlborough ma':[42.3459,-71.5523],'medford ma':[42.4184,-71.1062],'methuen ma':[42.7262,-71.1909],
+  'milford ma':[42.1398,-71.5187],'new bedford ma':[41.6362,-70.9342],'newton ma':[42.337,-71.2092],
+  'northampton ma':[42.3251,-72.6412],'peabody ma':[42.5279,-70.9287],'pittsfield ma':[42.4501,-73.2673],
+  'plymouth ma':[41.9584,-70.6673],'quincy ma':[42.2529,-71.0023],'revere ma':[42.4084,-71.012],
+  'salem ma':[42.5195,-70.8967],'somerville ma':[42.3876,-71.0995],'springfield ma':[42.1015,-72.5898],
+  'taunton ma':[41.9001,-71.0898],'tyngsborough ma':[42.6737,-71.427],'turners falls ma':[42.5987,-72.5573],
+  'waltham ma':[42.3765,-71.2356],'weymouth ma':[42.2237,-70.9412],'woburn ma':[42.4793,-71.1523],
+  'worcester ma':[42.2626,-71.8023],'yarmouth ma':[41.7068,-70.2287],'acton ma':[42.4848,-71.4326],
+  'agawam ma':[42.0698,-72.6218],'auburn ma':[42.1954,-71.8356],'billerica ma':[42.5584,-71.2687],
+  'canton ma':[42.1584,-71.1451],'chelmsford ma':[42.5998,-71.3673],'clinton ma':[42.4154,-71.6812],
+  'dartmouth ma':[41.6362,-70.9987],'dracut ma':[42.6737,-71.3048],'duxbury ma':[42.0404,-70.6662],
+  'falmouth ma':[41.5554,-70.6134],'framingham ma':[42.2793,-71.4162],'gardner ma':[42.5751,-71.9987],
+  'holden ma':[42.3529,-71.8648],'holliston ma':[42.1987,-71.4273],'ludlow ma':[42.1612,-72.4773],
+  'mansfield ma':[42.0001,-71.2187],'marblehead ma':[42.4998,-70.8567],'millis ma':[42.1673,-71.3598],
+  'milton ma':[42.2501,-71.0687],'natick ma':[42.2837,-71.3473],'needham ma':[42.2798,-71.2337],
+  'north attleborough ma':[41.9765,-71.3273],'northborough ma':[42.3198,-71.6498],'norton ma':[41.9687,-71.1848],
+  'norwood ma':[42.1948,-71.1987],'orange ma':[42.5912,-72.3087],'oxford ma':[42.1198,-71.8673],
+  'palmer ma':[42.1598,-72.3248],'randolph ma':[42.1648,-71.0423],'reading ma':[42.5251,-71.0951],
+  'rockland ma':[42.1287,-70.9162],'scituate ma':[42.1987,-70.7287],'sharon ma':[42.1237,-71.1787],
+  'shrewsbury ma':[42.2987,-71.7148],'southborough ma':[42.3048,-71.5212],'southbridge ma':[42.0751,-72.0323],
+  'spencer ma':[42.2454,-71.9898],'stoughton ma':[42.1237,-71.1009],'sudbury ma':[42.3834,-71.4162],
+  'swansea ma':[41.7548,-71.2134],'tewksbury ma':[42.6112,-71.2337],'wakefield ma':[42.5062,-71.0737],
+  'ware ma':[42.2598,-72.2398],'wareham ma':[41.7612,-70.7162],'watertown ma':[42.3659,-71.1823],
+  'webster ma':[42.0512,-71.8787],'wellesley ma':[42.2976,-71.2923],'westborough ma':[42.2698,-71.6148],
+  'westfield ma':[42.1248,-72.7498],'westford ma':[42.5798,-71.4337],'weston ma':[42.3662,-71.3012],
+  'westport ma':[41.5898,-71.0787],'wilmington ma':[42.5451,-71.1712],'winchester ma':[42.4512,-71.1362],
+  'wrentham ma':[42.0548,-71.3498],
+  'atlantic city nj':[39.3643,-74.4229],'bayonne nj':[40.6687,-74.1143],'camden nj':[39.9259,-75.1196],
+  'cherry hill nj':[39.9348,-75.0246],'clifton nj':[40.8584,-74.1637],'east orange nj':[40.7673,-74.2049],
+  'edison nj':[40.5187,-74.4121],'elizabeth nj':[40.664,-74.2107],'egg harbor city nj':[39.5298,-74.6487],
+  'hackensack nj':[40.8859,-74.0435],'hamilton nj':[40.2287,-74.6762],'irvington nj':[40.7237,-74.2298],
+  'jersey city nj':[40.7178,-74.0431],'linden nj':[40.6223,-74.2446],'long branch nj':[40.304,-73.9874],
+  'maplewood nj':[40.7312,-74.2734],'millville nj':[39.4026,-75.0596],'newark nj':[40.7357,-74.1724],
+  'new brunswick nj':[40.4874,-74.4474],'paterson nj':[40.9176,-74.1719],'perth amboy nj':[40.5073,-74.2621],
+  'plainfield nj':[40.6337,-74.4074],'trenton nj':[40.2171,-74.7429],'union city nj':[40.6973,-74.0268],
+  'vineland nj':[39.4862,-74.9285],'washington nj':[40.7573,-74.9827],
+  'albany ny':[42.6526,-73.7562],'binghamton ny':[42.0987,-75.918],'brooklyn ny':[40.6782,-73.9442],
+  'buffalo ny':[42.8864,-78.8784],'elmira ny':[42.0898,-76.8077],'hempstead ny':[40.7062,-73.6187],
+  'ithaca ny':[42.444,-76.5021],'jamaica ny':[40.6912,-73.8067],'long island city ny':[40.7447,-73.9485],
+  'mount vernon ny':[40.9126,-73.8371],'new rochelle ny':[40.9115,-73.7826],'new york city ny':[40.7128,-74.006],
+  'niagara falls ny':[43.0962,-79.0377],'poughkeepsie ny':[41.7004,-73.9209],'rochester ny':[43.1566,-77.6088],
+  'rome ny':[43.2128,-75.4557],'schenectady ny':[42.8142,-73.9396],'staten island ny':[40.5795,-74.1502],
+  'syracuse ny':[43.0481,-76.1474],'troy ny':[42.7284,-73.6918],'utica ny':[43.1009,-75.2327],
+  'white plains ny':[41.034,-73.7629],'yonkers ny':[40.9312,-73.8988],
+  'allentown pa':[40.6084,-75.4902],'altoona pa':[40.5187,-78.3947],'bethlehem pa':[40.6259,-75.3705],
+  'erie pa':[42.1292,-80.0851],'harrisburg pa':[40.2732,-76.8867],'lancaster pa':[40.0379,-76.3055],
+  'philadelphia pa':[39.9526,-75.1652],'pittsburgh pa':[40.4406,-79.9959],'reading pa':[40.3359,-75.9269],
+  'scranton pa':[41.409,-75.6624],'wilkes-barre pa':[41.2459,-75.8813],'york pa':[39.9626,-76.7277],
+  'norristown pa':[40.1215,-75.3399],'chester pa':[39.8498,-75.3557],'easton pa':[40.6887,-75.2207],
+  'bridgeport ct':[41.1865,-73.1952],'bristol ct':[41.6718,-72.9493],'danbury ct':[41.3948,-73.454],
+  'hartford ct':[41.7658,-72.6851],'meriden ct':[41.5382,-72.7973],'middletown ct':[41.5623,-72.6506],
+  'milford ct':[41.2223,-73.0573],'naugatuck ct':[41.4851,-73.0507],'new britain ct':[41.6612,-72.7795],
+  'new haven ct':[41.3083,-72.9279],'new london ct':[41.3557,-72.0995],'norwalk ct':[41.1177,-73.4082],
+  'norwich ct':[41.5243,-72.0759],'shelton ct':[41.3165,-73.0846],'stamford ct':[41.0534,-73.5387],
+  'stratford ct':[41.1843,-73.1332],'torrington ct':[41.8009,-73.1209],'waterbury ct':[41.5582,-73.0515],
+  'west hartford ct':[41.7623,-72.7418],'westport ct':[41.1415,-73.3579],
+  'cranston ri':[41.7798,-71.4373],'east providence ri':[41.8137,-71.3701],'pawtucket ri':[41.8787,-71.3887],
+  'providence ri':[41.824,-71.4128],'warwick ri':[41.7001,-71.4162],'woonsocket ri':[42.0029,-71.5148],
+  'newport ri':[41.4901,-71.3128],'north providence ri':[41.8612,-71.4634],
+  'auburn me':[44.0979,-70.2287],'augusta me':[44.3106,-69.7795],'bangor me':[44.8012,-68.7778],
+  'bath me':[43.9173,-69.8145],'biddeford me':[43.4926,-70.4534],'brunswick me':[43.9145,-69.9648],
+  'lewiston me':[44.1004,-70.2148],'portland me':[43.6591,-70.2568],'saco me':[43.5009,-70.4434],
+  'sanford me':[43.4395,-70.7737],'south portland me':[43.6412,-70.2409],'waterville me':[44.552,-69.6317],
+  'concord nh':[43.2081,-71.5376],'derry nh':[42.8812,-71.3273],'dover nh':[43.1979,-70.8737],
+  'keene nh':[42.9337,-72.2787],'manchester nh':[42.9956,-71.4548],'merrimack nh':[42.8648,-71.4926],
+  'nashua nh':[42.7654,-71.4676],'portsmouth nh':[43.0718,-70.7626],'rochester nh':[43.3045,-70.9748],
+  'salem nh':[42.7876,-71.2012],
+  'burlington vt':[44.4759,-73.2121],'essex vt':[44.4912,-73.1126],'montpelier vt':[44.2601,-72.5754],
+  'rutland vt':[43.6106,-72.9726],'south burlington vt':[44.4668,-73.1712],'stowe vt':[44.4654,-72.6876],
+  'annapolis md':[38.9784,-76.4922],'baltimore md':[39.2904,-76.6122],'bowie md':[38.9423,-76.7791],
+  'college park md':[38.9807,-76.9369],'columbia md':[39.2037,-76.861],'frederick md':[39.4143,-77.4105],
+  'gaithersburg md':[39.1434,-77.2014],'germantown md':[39.1734,-77.2717],'hagerstown md':[39.6418,-77.7199],
+  'rockville md':[39.084,-77.1528],'salisbury md':[38.3607,-75.5994],'silver spring md':[38.9907,-77.0261],
+  'waldorf md':[38.6243,-76.861],'westminster md':[39.5751,-76.9963],
+  'alexandria va':[38.8048,-77.0469],'arlington va':[38.8799,-77.1068],'chesapeake va':[36.7682,-76.2875],
+  'hampton va':[37.0299,-76.3452],'lynchburg va':[37.4138,-79.1422],'newport news va':[37.0871,-76.473],
+  'norfolk va':[36.8508,-76.2859],'portsmouth va':[36.8354,-76.2983],'richmond va':[37.5407,-77.436],
+  'roanoke va':[37.271,-79.9414],'suffolk va':[36.7282,-76.5836],'virginia beach va':[36.8529,-75.978],
+}
+
+// Parse city + state from address strings like "123 Main St Leicester, MA 01524"
+// or "123 Main St, Leicester, Massachusetts, United States, 01524"
+function parseAddressCity(addr) {
+  if(!addr) return ['','']
+  const streetWords = new Set(['rd','st','ave','way','pkwy','blvd','dr','ln','ct','pl','hwy',
+    'rte','ste','suite','floor','fl','unit','apt','street','road','avenue','drive','lane',
+    'court','place','highway','route','parkway','boulevard','industrial','commercial',
+    'forge','millers','corporate','technology','business'])
+  // Format 1: "...CityName, ST 12345"
+  const m = addr.match(/,\s*([A-Z]{2})\s+\d{5}/)
+  if(m) {
+    const state = m[1]
+    const words = addr.slice(0, m.index).trim().split(/\s+/)
+    const cityWords = []
+    for(const w of [...words].reverse()) {
+      if(/^\d/.test(w) || streetWords.has(w.toLowerCase().replace(/[.,]/g,''))) break
+      cityWords.unshift(w)
+      if(cityWords.length >= 3) break
+    }
+    if(cityWords.length) return [cityWords.join(' '), state]
+  }
+  // Format 2: "Street, City, State Name, Country, ZIP"
+  const stateNames = {massachusetts:'MA','new jersey':'NJ','new york':'NY',pennsylvania:'PA',
+    connecticut:'CT','rhode island':'RI',maine:'ME','new hampshire':'NH',vermont:'VT',
+    maryland:'MD',virginia:'VA',california:'CA',nevada:'NV',illinois:'IL',missouri:'MO',
+    georgia:'GA',colorado:'CO',minnesota:'MN',kentucky:'KY',florida:'FL',ohio:'OH',
+    michigan:'MI',texas:'TX','north carolina':'NC',arizona:'AZ','new mexico':'NM',
+    oklahoma:'OK',oregon:'OR',washington:'WA'}
+  const parts = addr.split(',').map(s => s.trim())
+  for(let i = 1; i < parts.length; i++) {
+    const pl = parts[i].toLowerCase()
+    const abbr = parts[i].match(/^([A-Z]{2})$/)
+    const stateAbbr = stateNames[pl] || (abbr ? abbr[1] : null)
+    if(stateAbbr && i >= 1 && !/^\d+$/.test(parts[i-1])) return [parts[i-1], stateAbbr]
+  }
+  return ['','']
+}
+
+function calcDist(p) {
+  // Priority 1: exact coordinates
+  if(p.lat && p.lng) return {miles: haversine(HOME.lat, HOME.lng, +p.lat, +p.lng), estimated: false}
+
+  // Priority 2: city from record field OR parsed from address
+  let city = (p.city||'').trim()
+  let state = (p.state||'').toUpperCase().trim()
+  if(!city && p.address) {
+    const [pc, ps] = parseAddressCity(p.address)
+    city = pc || ''
+    if(!state && ps) state = ps
+  }
+  if(city && state) {
+    const key = city.toLowerCase() + ' ' + state.toLowerCase()
+    const cc = CITY_CENTROIDS[key]
+    if(cc) return {miles: haversine(HOME.lat, HOME.lng, cc[0], cc[1]), estimated: true}
+  }
+
+  // Priority 3: state centroid fallback
+  const c = CENTROIDS[state]
+  return c ? {miles: haversine(HOME.lat, HOME.lng, c.lat, c.lng), estimated: true} : null
 }
 const DBS = [
   {s:'MA',p:1,n:'MA Cannabis Control Commission',url:'https://masscannabiscontrol.com/licensing-tracker/'},
@@ -611,13 +758,11 @@ function save() {
 }
 function load() {
   try { prospects = JSON.parse(localStorage.getItem('ct_prospects')||'[]') } catch(e){ prospects = [] }
-  // Backfill any fields that may be missing from older records or Gist-synced records
+  // Backfill and recalculate fields — always recalc distance so city-level lookup applies
   for(const p of prospects) {
-    if(p.distanceMiles == null) {
-      const dist = calcDist(p)
-      p.distanceMiles = dist?.miles ?? null
-      p.distEstimated = dist?.estimated ?? true
-    }
+    const dist = calcDist(p)
+    p.distanceMiles = dist?.miles ?? null
+    p.distEstimated = dist?.estimated ?? true
     if(!p.originalEntityType) p.originalEntityType = p.entityType
     if(!p.classConfidence) p.classConfidence = calcConfidence(p)
     if(!p.priorityScore) p.priorityScore = calcScore(p)
@@ -879,9 +1024,11 @@ async function syncNow() {
     }
     dbg(`Merge complete. Added ${added} new records.`)
 
-    // Backfill any fields missing from synced records
+    // Backfill any fields missing from synced records — always recalc distance
     for(const p of prospects) {
-      if(p.distanceMiles == null) { const d = calcDist(p); p.distanceMiles = d?.miles??null; p.distEstimated = d?.estimated??true }
+      const d = calcDist(p)
+      p.distanceMiles = d?.miles??null
+      p.distEstimated = d?.estimated??true
       if(!p.originalEntityType) p.originalEntityType = p.entityType
       if(!p.classConfidence) p.classConfidence = calcConfidence(p)
       if(!p.priorityScore) p.priorityScore = calcScore(p)
