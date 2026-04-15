@@ -30,13 +30,7 @@ html,body{height:100%;font-family:'IBM Plex Mono',monospace;background:var(--bg)
 .topbar-right{display:flex;align-items:center;gap:8px}
 
 /* API key bar */
-.keybar{background:#f1f5f9;border-bottom:1px solid var(--border);padding:9px 20px;display:flex;align-items:center;gap:10px;font-size:14px;flex-shrink:0}
-.keybar label{color:var(--muted);white-space:nowrap;flex-shrink:0}
-.keybar input{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:4px;font-family:inherit;font-size:14px;width:340px;outline:none;letter-spacing:.03em}
-.keybar input:focus{border-color:var(--accent)}
-.keybar .hint{font-size:12px;color:var(--muted);flex-shrink:0}
-.keybar .hint a{color:var(--accent);text-decoration:none}
-.key-ok{color:var(--green);font-size:12px;flex-shrink:0}
+
 
 /* Stats */
 .stats-wrap{padding:16px 20px 0}
@@ -170,10 +164,7 @@ textarea:focus{border-color:var(--accent)}
 .modal-box select,.modal-box input[type=text]{width:100%;font-size:14px;padding:7px 10px;border:1px solid var(--border);border-radius:4px;font-family:inherit;outline:none}
 .modal-box select:focus,.modal-box input[type=text]:focus{border-color:var(--accent)}
 .modal-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
-.syncbar{background:#f8fafc;border-bottom:1px solid var(--border);padding:8px 20px;display:flex;align-items:center;gap:10px;font-size:12px;flex-shrink:0;flex-wrap:wrap}
-.syncbar label{color:var(--muted);white-space:nowrap;flex-shrink:0}
-.syncbar input{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:4px;font-family:inherit;font-size:12px;outline:none}
-.syncbar input:focus{border-color:var(--accent)}
+
 .sync-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}
 .sync-ok{background:var(--green)}
 .sync-warn{background:var(--amber)}
@@ -188,7 +179,7 @@ textarea:focus{border-color:var(--accent)}
   <div class="topbar">
     <div style="font-family:'Duplet',sans-serif;font-size:22px;font-weight:700;white-space:nowrap;flex-shrink:0;letter-spacing:-.2px">
       <span style="color:var(--text)">CLEAN</span><span style="color:var(--accent)">Theory</span><span style="color:var(--muted);font-size:13px;font-weight:400;margin-left:14px;font-family:'IBM Plex Mono',monospace;letter-spacing:0">Prospect Intelligence</span>
-      <span style="color:var(--muted);font-size:10px;font-weight:400;margin-left:10px;font-family:'IBM Plex Mono',monospace;background:var(--surface2);padding:2px 7px;border-radius:4px;vertical-align:middle">v1.23 &nbsp;·&nbsp; Apr 15 2026</span>
+      <span style="color:var(--muted);font-size:10px;font-weight:400;margin-left:10px;font-family:'IBM Plex Mono',monospace;background:var(--surface2);padding:2px 7px;border-radius:4px;vertical-align:middle">v1.24 &nbsp;·&nbsp; Apr 15 2026</span>
     </div>
     <div class="topbar-mid">
       <div class="tab-nav">
@@ -204,24 +195,45 @@ textarea:focus{border-color:var(--accent)}
     </div>
   </div>
 
-  <!-- API Key bar -->
-  <div class="keybar">
-    <label>Anthropic API key</label>
-    <input type="password" id="apiKey" placeholder="sk-ant-api03-..." oninput="saveKey()" autocomplete="off">
-    <span class="key-ok" id="keyOk" style="display:none">&#10003; Saved</span>
-    <span class="hint">Required for scraping &mdash; get one free at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></span>
+  <!-- Compact status strip (always visible) -->
+  <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:6px 20px;display:flex;align-items:center;gap:16px;font-size:12px;color:var(--muted)">
+    <span id="syncStatus"><span class="sync-dot sync-idle"></span>Not connected</span>
+    <span id="syncMeta" style="color:var(--muted)"></span>
+    <button id="ghSyncBtn" onclick="syncNow()" style="display:none;background:none;border:1px solid var(--border);color:var(--muted);padding:3px 10px;border-radius:4px;font-size:12px;cursor:pointer">&#8645; Sync now</button>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:12px">
+      <span id="keyOk" style="display:none;color:var(--green);font-size:12px">&#10003; API key saved</span>
+      <button onclick="toggleSettings()" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:2px 6px;border-radius:4px" id="settingsBtn">⚙ Settings</button>
+    </span>
   </div>
 
-  <!-- GitHub Gist Sync bar -->
-  <div class="syncbar" id="syncbar">
-    <label>GitHub sync</label>
-    <input type="password" id="ghToken" placeholder="GitHub Personal Access Token (gist scope)" style="width:290px" oninput="ghTokenChanged()">
-    <input type="text" id="ghGistId" placeholder="Gist ID (share with teammates)" style="width:210px" oninput="ghGistChanged()">
-    <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" id="ghCreateBtn" onclick="createGist()" style="display:none">&#43; Create shared DB</button>
-    <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" id="ghSyncBtn" onclick="syncNow()" style="display:none">&#8645; Sync now</button>
-    <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" onclick="toggleDebug()" title="Show sync diagnostics">&#9881; Debug</button>
-    <span id="syncStatus" style="color:var(--muted)"><span class="sync-dot sync-idle"></span>Not connected</span>
-    <span style="color:var(--muted);font-size:11px;margin-left:auto">Token needs <strong>gist</strong> scope only &mdash; <a href="https://github.com/settings/tokens/new?scopes=gist&description=CLEANTheory+Prospects" target="_blank" style="color:var(--accent)">create one here</a></span>
+  <!-- Settings panel (hidden by default) -->
+  <div id="settingsPanel" style="display:none;background:#f8fafc;border-bottom:1px solid var(--border);padding:16px 20px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:900px">
+      <!-- API Key -->
+      <div>
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px">Anthropic API Key</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="password" id="apiKey" placeholder="sk-ant-api03-..." oninput="saveKey()" autocomplete="off"
+            style="flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 11px;border-radius:4px;font-family:inherit;font-size:13px;outline:none">
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px">Required for AI reclassification &mdash; <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent)">get one free</a></div>
+      </div>
+      <!-- GitHub Sync -->
+      <div>
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px">GitHub Sync</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <input type="password" id="ghToken" placeholder="GitHub Personal Access Token (gist scope)" oninput="ghTokenChanged()"
+            style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 11px;border-radius:4px;font-family:inherit;font-size:13px;outline:none">
+          <input type="text" id="ghGistId" placeholder="Gist ID (share with teammates)" oninput="ghGistChanged()"
+            style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 11px;border-radius:4px;font-family:inherit;font-size:13px;outline:none">
+          <div style="display:flex;align-items:center;gap:8px;margin-top:2px">
+            <button class="btn btn-outline" style="font-size:12px;padding:4px 10px" id="ghCreateBtn" onclick="createGist()" style="display:none">&#43; Create shared DB</button>
+            <button class="btn btn-outline" style="font-size:12px;padding:4px 10px" onclick="toggleDebug()">&#9881; Debug log</button>
+            <span style="font-size:11px;color:var(--muted)">Token needs <strong>gist</strong> scope &mdash; <a href="https://github.com/settings/tokens/new?scopes=gist&description=CLEANTheory+Prospects" target="_blank" style="color:var(--accent)">create one here</a></span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Debug panel -->
@@ -238,7 +250,7 @@ textarea:focus{border-color:var(--accent)}
     <span style="font-size:18px">🔒</span>
     <div>
       <strong>Read-only mode</strong> — your changes are visible locally but won't sync to teammates.
-      To get write access, enter the Gist owner's GitHub token in the sync bar above.
+      To get write access, enter the Gist owner's GitHub token in <button onclick="toggleSettings()" style="background:none;border:none;color:var(--amber);text-decoration:underline;cursor:pointer;font-size:13px;padding:0">⚙ Settings</button>.
     </div>
     <div style="margin-left:auto;white-space:nowrap;font-size:12px;opacity:.8">Syncing and viewing work normally &nbsp;·&nbsp; Importing, scraping, and challenges are local only</div>
   </div>
@@ -870,6 +882,14 @@ async function forcePush() {
     setSyncStatus('err', `&#9888; Push failed: ${err.message}`)
   }
   isSyncing = false
+}
+
+function toggleSettings() {
+  const panel = document.getElementById('settingsPanel')
+  const btn   = document.getElementById('settingsBtn')
+  const open  = panel.style.display === 'none'
+  panel.style.display = open ? '' : 'none'
+  if(btn) { btn.style.color = open ? 'var(--accent)' : 'var(--muted)'; btn.style.background = open ? 'rgba(13,148,136,.08)' : 'none' }
 }
 
 function setSyncStatus(type, msg) {
