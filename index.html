@@ -182,7 +182,7 @@ textarea:focus{border-color:var(--accent)}
   <div class="topbar">
     <div style="font-family:'Duplet',sans-serif;font-size:22px;font-weight:700;white-space:nowrap;flex-shrink:0;letter-spacing:-.2px">
       <span style="color:var(--text)">CLEAN</span><span style="color:var(--accent)">Theory</span><span style="color:var(--muted);font-size:13px;font-weight:400;margin-left:14px;font-family:'IBM Plex Mono',monospace;letter-spacing:0">Prospect Intelligence</span>
-      <span style="color:var(--muted);font-size:10px;font-weight:400;margin-left:10px;font-family:'IBM Plex Mono',monospace;background:var(--surface2);padding:2px 7px;border-radius:4px;vertical-align:middle">v1.16 &nbsp;·&nbsp; Apr 15 2026</span>
+      <span style="color:var(--muted);font-size:10px;font-weight:400;margin-left:10px;font-family:'IBM Plex Mono',monospace;background:var(--surface2);padding:2px 7px;border-radius:4px;vertical-align:middle">v1.17 &nbsp;·&nbsp; Apr 15 2026</span>
     </div>
     <div class="topbar-mid">
       <div class="tab-nav">
@@ -1004,6 +1004,7 @@ function confBadge(p) {
   if(c==='medium') return `<span class="conf-med">likely</span>`
   return `<span class="conf-low">guessed</span>`
 }
+function scColor(n) { return n>=75?'var(--green)':n>=45?'var(--amber)':'var(--muted)' }
 function typeLabel(t) { return t==='cultivator'?'Cultivator':t==='processor'?'Processor':t==='testing_lab'?'Testing lab':t==='dispensary'?'Dispensary':t||'' }
 function thH(f, label) {
   const cls = sortF===f ? (sortD===-1?'sort-desc':'sort-asc') : ''
