@@ -63,7 +63,8 @@ html,body{height:100%;font-family:'IBM Plex Mono',monospace;background:var(--bg)
 .rc{font-size:13px;color:var(--muted)}
 
 /* Table */
-.tbl-wrap{border:1px solid var(--border);border-radius:6px;overflow-x:auto}
+.tbl-wrap{border:1px solid var(--border);border-radius:6px;overflow-x:auto;overflow-y:auto;flex:1}
+#pane-list{display:flex;flex-direction:column}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th{text-align:left;padding:9px 14px;background:#f8fafc;color:var(--muted);font-weight:500;
    font-size:11px;letter-spacing:.05em;text-transform:uppercase;border-bottom:1px solid var(--border);
@@ -182,7 +183,7 @@ textarea:focus{border-color:var(--accent)}
   <div class="topbar">
     <div style="font-family:'Duplet',sans-serif;font-size:22px;font-weight:700;white-space:nowrap;flex-shrink:0;letter-spacing:-.2px">
       <span style="color:var(--text)">CLEAN</span><span style="color:var(--accent)">Theory</span><span style="color:var(--muted);font-size:13px;font-weight:400;margin-left:14px;font-family:'IBM Plex Mono',monospace;letter-spacing:0">Prospect Intelligence</span>
-      <span style="color:var(--muted);font-size:10px;font-weight:400;margin-left:10px;font-family:'IBM Plex Mono',monospace;background:var(--surface2);padding:2px 7px;border-radius:4px;vertical-align:middle">v1.17 &nbsp;·&nbsp; Apr 15 2026</span>
+      <span style="color:var(--muted);font-size:10px;font-weight:400;margin-left:10px;font-family:'IBM Plex Mono',monospace;background:var(--surface2);padding:2px 7px;border-radius:4px;vertical-align:middle">v1.20 &nbsp;·&nbsp; Apr 15 2026</span>
     </div>
     <div class="topbar-mid">
       <div class="tab-nav">
@@ -283,6 +284,10 @@ textarea:focus{border-color:var(--accent)}
       </select>
       <div class="modal-lbl">Note <span style="color:var(--muted);font-weight:400">(optional — why are you changing this?)</span></div>
       <input type="text" id="challengeNote" placeholder="e.g. Checked their website — extraction only, no cultivation">
+      <div style="margin-top:12px;display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface2);border-radius:6px">
+        <input type="checkbox" id="challengeApplyAll" style="width:16px;height:16px;cursor:pointer;flex-shrink:0">
+        <label for="challengeApplyAll" style="font-size:13px;cursor:pointer;color:var(--text)" id="challengeApplyAllLabel">Apply to all contacts at this company</label>
+      </div>
       <div class="modal-acts">
         <button class="btn btn-outline" onclick="closeChallenge()">Cancel</button>
         <button class="btn btn-outline" id="revertSingleBtn" onclick="revertSingle(challengeId)" style="display:none">&#8635; Revert to original</button>
@@ -585,6 +590,17 @@ function save() {
 }
 function load() {
   try { prospects = JSON.parse(localStorage.getItem('ct_prospects')||'[]') } catch(e){ prospects = [] }
+  // Backfill any fields that may be missing from older records or Gist-synced records
+  for(const p of prospects) {
+    if(p.distanceMiles == null) {
+      const dist = calcDist(p)
+      p.distanceMiles = dist?.miles ?? null
+      p.distEstimated = dist?.estimated ?? true
+    }
+    if(!p.originalEntityType) p.originalEntityType = p.entityType
+    if(!p.classConfidence) p.classConfidence = calcConfidence(p)
+    if(!p.priorityScore) p.priorityScore = calcScore(p)
+  }
 }
 
 // ─── Debug panel ─────────────────────────────────────────
@@ -836,6 +852,14 @@ async function syncNow() {
     }
     dbg(`Merge complete. Added ${added} new records.`)
 
+    // Backfill any fields missing from synced records
+    for(const p of prospects) {
+      if(p.distanceMiles == null) { const d = calcDist(p); p.distanceMiles = d?.miles??null; p.distEstimated = d?.estimated??true }
+      if(!p.originalEntityType) p.originalEntityType = p.entityType
+      if(!p.classConfidence) p.classConfidence = calcConfidence(p)
+      if(!p.priorityScore) p.priorityScore = calcScore(p)
+    }
+
     const logKey = e => (e.filename||'')+(e.date||'')+(e.time||'')
     const localLogKeys = new Set()
     let log = []
@@ -1067,21 +1091,15 @@ function renderStats() {
   }
 }
 
-// ─── Render table ────────────────────────────────────────
-function render() {
-  const rows = getFiltered()
-  document.getElementById('rc').textContent = rows.length + ' result' + (rows.length!==1?'s':'')
-  const exportBtn = document.getElementById('exportBtn')
-  if(exportBtn) exportBtn.innerHTML = `&#8659; Export${rows.length < prospects.length ? ' '+rows.length+' filtered' : ' Excel'}`
-  if(!prospects.length) {
-    document.getElementById('tbl').innerHTML = `<div style="text-align:center;padding:60px;color:var(--muted)"><div style="font-size:36px;margin-bottom:12px">📋</div><div style="font-size:15px;margin-bottom:6px;color:var(--text)">No prospects yet</div><div style="font-size:14px">Import from Excel, Google Maps, or scrape state databases</div></div>`
-    return
-  }
-  const disp = rows.slice(0,500)
+// ─── Infinite scroll state ───────────────────────────────
+let currentRows = []
+let renderedCount = 0
+const PAGE_SIZE = 100
+
+function rowHtml(p) {
   const escAttr = s => (s||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;')
-  const rowHtml = disp.map(p => {
-    try {
-      return `<tr>
+  try {
+    return `<tr>
       <td style="white-space:nowrap">
         <div class="sc-wrap">
           <span class="sc-num" style="color:${scColor(p.priorityScore)}">${p.priorityScore}</span>
@@ -1100,23 +1118,76 @@ function render() {
       <td style="color:var(--muted2);font-size:13px">${p.contactName||'—'}</td>
       <td style="color:var(--muted2);font-size:13px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.contactTitle||'—'}</td>
       <td style="white-space:nowrap">${confBadge(p)}${p.challengeNote?`<span title="${escAttr(p.challengeNote)}" style="color:var(--muted);font-size:11px;margin-left:4px">ⓘ</span>`:''}</td>
-      <td><button class="btn-ch" onclick="openChallenge('${p.id}')" title="Challenge">&#9873;</button><button class="btn-ch" onclick="deleteRecord('${p.id}')" title="Delete" style="color:var(--red)">&#10005;</button></td>
+      <td style="position:sticky;right:0;background:var(--surface);white-space:nowrap;border-left:1px solid var(--border)"><button class="btn-ch" onclick="openChallenge('${p.id}')" title="Challenge classification">&#9873;</button><button class="btn-ch" onclick="deleteRecord('${p.id}')" title="Delete record" style="color:var(--red)">&#10005;</button></td>
     </tr>`
-    } catch(e) { return `<tr><td colspan="14" style="color:var(--red);font-size:12px;padding:6px 14px">Row error: ${e.message}</td></tr>` }
-  }).join('')
-  document.getElementById('tbl').innerHTML = `<table>
-    <thead><tr>
-      ${thH('priorityScore','Score')}
-      ${thH('distanceMiles','Distance')}
-      ${thH('businessName','Business name')}
-      ${thH('entityType','Type')}
-      ${thH('state','State')}
-      ${thH('city','City')}
-      ${thH('licenseStatus','Status')}
-      <th>License #</th><th>Phone</th><th>Email</th><th>Contact</th><th>Title</th><th>Confidence</th><th></th>
-    </tr></thead>
-    <tbody>${rowHtml}</tbody>
-  </table>${rows.length>500?`<div style="text-align:center;padding:10px;font-size:12px;color:var(--muted)">Showing 500 of ${rows.length} — export to Excel to see all</div>`:''}`
+  } catch(e) { return `<tr><td colspan="14" style="color:var(--red);font-size:12px;padding:6px 14px">Row error: ${e.message}</td></tr>` }
+}
+
+function appendRows() {
+  const tbody = document.getElementById('tbl-body')
+  if(!tbody || renderedCount >= currentRows.length) return
+  const next = currentRows.slice(renderedCount, renderedCount + PAGE_SIZE)
+  tbody.insertAdjacentHTML('beforeend', next.map(rowHtml).join(''))
+  renderedCount += next.length
+  updateScrollFooter()
+}
+
+function updateScrollFooter() {
+  const footer = document.getElementById('tbl-footer')
+  if(!footer) return
+  const remaining = currentRows.length - renderedCount
+  if(remaining > 0) {
+    footer.innerHTML = `<div style="padding:12px 14px;font-size:13px;color:var(--muted);display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border)">
+      <span>Showing ${renderedCount} of ${currentRows.length} — scroll to load more</span>
+      <button class="btn btn-outline" style="font-size:12px;padding:3px 10px" onclick="bulkDelete(${currentRows.length})">&#10005; Delete all ${currentRows.length} filtered</button>
+    </div>`
+  } else {
+    footer.innerHTML = currentRows.length > 0 ? `<div style="padding:8px 14px;font-size:12px;color:var(--muted);display:flex;justify-content:space-between;border-top:1px solid var(--border)">
+      <span>All ${currentRows.length} record${currentRows.length!==1?'s':''} shown</span>
+      ${currentRows.length > 1 ? `<button class="btn btn-outline" style="font-size:12px;padding:3px 10px" onclick="bulkDelete(${currentRows.length})">&#10005; Delete all ${currentRows.length} filtered</button>` : ''}
+    </div>` : ''
+  }
+}
+
+function render() {
+  const rows = getFiltered()
+  document.getElementById('rc').textContent = rows.length + ' result' + (rows.length!==1?'s':'')
+  const exportBtn = document.getElementById('exportBtn')
+  if(exportBtn) exportBtn.innerHTML = `&#8659; Export${rows.length < prospects.length ? ' '+rows.length+' filtered' : ' Excel'}`
+
+  if(!prospects.length) {
+    document.getElementById('tbl').innerHTML = `<div style="text-align:center;padding:60px;color:var(--muted)"><div style="font-size:36px;margin-bottom:12px">📋</div><div style="font-size:15px;margin-bottom:6px;color:var(--text)">No prospects yet</div><div style="font-size:14px">Import from Excel, Google Maps, or scrape state databases</div></div>`
+    return
+  }
+
+  // Reset infinite scroll state
+  currentRows = rows
+  renderedCount = 0
+
+  document.getElementById('tbl').innerHTML = `
+    <table>
+      <thead><tr>
+        ${thH('priorityScore','Score')}
+        ${thH('distanceMiles','Distance')}
+        ${thH('businessName','Business name')}
+        ${thH('entityType','Type')}
+        ${thH('state','State')}
+        ${thH('city','City')}
+        ${thH('licenseStatus','Status')}
+        <th>License #</th><th>Phone</th><th>Email</th><th>Contact</th><th>Title</th><th>Confidence</th>
+        <th style="position:sticky;right:0;background:#f8fafc;z-index:2;min-width:64px">Actions</th>
+      </tr></thead>
+      <tbody id="tbl-body"></tbody>
+    </table>
+    <div id="tbl-footer"></div>`
+
+  // Wire scroll listener to tbl-wrap
+  const wrap = document.getElementById('tbl')
+  wrap.onscroll = () => {
+    if(wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 200) appendRows()
+  }
+
+  appendRows() // render first page
 }
 
 // ─── Render DB list ──────────────────────────────────────
@@ -1526,6 +1597,21 @@ function openChallenge(id) {
   document.getElementById('modal-current').textContent = typeLabels[p.entityType] || p.entityType || '—'
   document.getElementById('challengeType').value = p.entityType || 'cultivator'
   document.getElementById('challengeNote').value = p.challengeNote || ''
+
+  // Show count of other contacts at same company
+  const siblings = prospects.filter(x => x.id !== id && x.businessName === p.businessName && x.state === p.state)
+  const applyAllCb = document.getElementById('challengeApplyAll')
+  const applyAllLbl = document.getElementById('challengeApplyAllLabel')
+  if(applyAllCb && applyAllLbl) {
+    applyAllCb.checked = false
+    if(siblings.length > 0) {
+      applyAllLbl.textContent = `Apply to all ${siblings.length + 1} contacts at this company`
+      applyAllCb.parentElement.style.display = 'flex'
+    } else {
+      applyAllCb.parentElement.style.display = 'none'
+    }
+  }
+
   const roNote = document.getElementById('challengeReadonlyNote')
   if(roNote) roNote.style.display = isReadOnly ? 'block' : 'none'
   const revertBtn = document.getElementById('revertSingleBtn')
@@ -1545,11 +1631,22 @@ function closeChallenge() {
 function saveChallenge() {
   const p = prospects.find(x => x.id === challengeId)
   if(!p) return
-  p.entityType      = document.getElementById('challengeType').value
-  p.challenged      = true
-  p.classConfidence = 'challenged'
-  p.challengeNote   = document.getElementById('challengeNote').value.trim()
-  p.priorityScore   = calcScore(p)
+  const newType  = document.getElementById('challengeType').value
+  const note     = document.getElementById('challengeNote').value.trim()
+  const applyAll = document.getElementById('challengeApplyAll')?.checked
+
+  const applyTo = applyAll
+    ? prospects.filter(x => x.businessName === p.businessName && x.state === p.state)
+    : [p]
+
+  for(const rec of applyTo) {
+    rec.entityType      = newType
+    rec.challenged      = true
+    rec.classConfidence = 'challenged'
+    rec.challengeNote   = note
+    rec.priorityScore   = calcScore(rec)
+  }
+
   save()
   renderAll()
   closeChallenge()
@@ -1758,6 +1855,14 @@ function filterStaleDupes() {
 
 function deleteRecord(id) {
   prospects = prospects.filter(p => p.id !== id)
+  save()
+  renderAll()
+}
+
+function bulkDelete(count) {
+  if(!confirm(`Delete all ${count} currently filtered records? This cannot be undone.`)) return
+  const toDelete = new Set(getFiltered().map(p => p.id))
+  prospects = prospects.filter(p => !toDelete.has(p.id))
   save()
   renderAll()
 }
