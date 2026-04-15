@@ -194,7 +194,7 @@ textarea:focus{border-color:var(--accent)}
     </div>
     <div class="topbar-right">
       <button class="btn btn-danger" onclick="clearAll()" style="font-size:11px;padding:5px 10px">Clear all</button>
-      <button class="btn btn-primary" onclick="exportExcel()">&#8659; Export Excel</button>
+      <button class="btn btn-primary" onclick="exportExcel()" id="exportBtn">&#8659; Export Excel</button>
     </div>
   </div>
 
@@ -941,11 +941,20 @@ function addProspects(arr) {
 function today() { return new Date().toISOString().split('T')[0] }
 
 function clearAll() {
-  if(!confirm('Clear all prospects? This cannot be undone.')) return
+  if(!confirm('Clear all prospects for everyone on the team?\n\nThis will wipe your local data AND push an empty database to the shared Gist. All teammates will see an empty list on their next sync.\n\nThis cannot be undone.')) return
   prospects = []
   scrSt = {}
   save()
   renderAll()
+  // Push empty state to Gist if connected
+  const token  = getGhToken()
+  const gistId = getGhGistId()
+  if(token && gistId) {
+    setSyncStatus('idle', 'Pushing empty database to Gist…')
+    gistRequest('PATCH', gistId, { files:{ [GIST_FILENAME]:{ content: buildGistPayload().files[GIST_FILENAME].content } } })
+      .then(() => setSyncStatus('ok', '&#10003; Database cleared for all teammates'))
+      .catch(err => setSyncStatus('err', `&#9888; Local cleared but Gist push failed: ${err.message}`))
+  }
 }
 
 // ─── Filtering / sorting ────────────────────────────────
@@ -1061,6 +1070,8 @@ function renderStats() {
 function render() {
   const rows = getFiltered()
   document.getElementById('rc').textContent = rows.length + ' result' + (rows.length!==1?'s':'')
+  const exportBtn = document.getElementById('exportBtn')
+  if(exportBtn) exportBtn.innerHTML = `&#8659; Export${rows.length < prospects.length ? ' '+rows.length+' filtered' : ' Excel'}`
   if(!prospects.length) {
     document.getElementById('tbl').innerHTML = `<div style="text-align:center;padding:60px;color:var(--muted)"><div style="font-size:36px;margin-bottom:12px">📋</div><div style="font-size:15px;margin-bottom:6px;color:var(--text)">No prospects yet</div><div style="font-size:14px">Import from Excel, Google Maps, or scrape state databases</div></div>`
     return
