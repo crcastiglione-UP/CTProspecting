@@ -542,16 +542,16 @@ function calcDist(p){
   return c ? {miles:haversine(HOME.lat,HOME.lng,c.lat,c.lng), estimated:true} : null
 }
 const DBS = [
-  {s:'MA',p:1,n:'MA Cannabis Control Commission',url:'https://masscannabiscontrol.com/licensing/licensee-list/'},
-  {s:'NJ',p:2,n:'NJ Cannabis Regulatory Commission',url:'https://www.nj.gov/cannabis/businesses/licensed-businesses.shtml'},
+  {s:'MA',p:1,n:'MA Cannabis Control Commission',url:'https://masscannabiscontrol.com/licensing-tracker/'},
+  {s:'NJ',p:2,n:'NJ Cannabis Regulatory Commission',url:'https://nj.gov/cannabis/businesses/permitted/index.shtml'},
   {s:'PA',p:3,n:'PA Dept of Health – Medical Cannabis',url:'https://www.health.pa.gov/topics/programs/Medical%20Marijuana/Pages/Industry.aspx'},
-  {s:'NY',p:3,n:'NY Office of Cannabis Management',url:'https://cannabis.ny.gov/licensee-list'},
-  {s:'CT',p:4,n:'CT Dept of Consumer Protection',url:'https://portal.ct.gov/DCP/Cannabis-Licensing/Resources/Licensed-Cannabis-Establishments'},
+  {s:'NY',p:3,n:'NY Office of Cannabis Management',url:'https://cannabis.ny.gov/licensing'},
+  {s:'CT',p:4,n:'CT Dept of Consumer Protection – eLicense',url:'https://www.elicense.ct.gov/'},
   {s:'RI',p:5,n:'RI Dept of Business Regulation',url:'https://dbr.ri.gov/cannabis/licensing/active-licensees'},
-  {s:'ME',p:6,n:'ME Office of Cannabis Policy',url:'https://www.maine.gov/dafs/ocp/adult-use/licensing/current-licensees'},
+  {s:'ME',p:6,n:'ME Office of Cannabis Policy',url:'https://www11.maine.gov/dafs/ocp/open-data/adult-use/licensee-search'},
   {s:'NH',p:6,n:'NH Therapeutic Cannabis Program',url:'https://www.dhhs.nh.gov/programs-services/behavioral-health/therapeutic-cannabis'},
-  {s:'VT',p:6,n:'VT Cannabis Control Board',url:'https://ccb.vermont.gov/licensee-search'},
-  {s:'MD',p:7,n:'MD Cannabis Administration',url:'https://cca.maryland.gov/pages/industry.aspx'},
+  {s:'VT',p:6,n:'VT Cannabis Control Board',url:'https://ccb.vermont.gov/ccb/licenses'},
+  {s:'MD',p:7,n:'MD Cannabis Administration',url:'https://cannabis.maryland.gov/Pages/Industry_Licensees_and_Registrants.aspx'},
   {s:'VA',p:8,n:'VA Cannabis Control Authority',url:'https://www.vca.virginia.gov/'},
 ]
 
