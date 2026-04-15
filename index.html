@@ -151,6 +151,7 @@ textarea:focus{border-color:var(--accent)}
 .conf-med{background:rgba(217,119,6,.1);color:var(--amber);padding:2px 7px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap;display:inline-block}
 .conf-low{background:var(--surface2);color:var(--muted);padding:2px 7px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap;display:inline-block}
 .conf-corr{background:rgba(37,99,235,.1);color:var(--blue);padding:2px 7px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap;display:inline-block}
+.conf-stale{background:rgba(239,68,68,.1);color:var(--red);padding:2px 7px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap;display:inline-block}
 .btn-ch{background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:2px 6px;border-radius:3px;font-family:inherit;opacity:.7}
 .btn-ch:hover{background:var(--surface2);color:var(--text);opacity:1}
 .stat-sub{font-size:11px;color:var(--muted);margin-top:3px}
@@ -329,6 +330,7 @@ textarea:focus{border-color:var(--accent)}
         <option value="medium">Likely</option>
         <option value="low">Guessed</option>
         <option value="challenged">Corrected</option>
+        <option value="stale">Possible stale dupe</option>
       </select>
       <select id="fr" onchange="render()" title="Distance from Easthampton, MA">
         <option value="">Any distance</option>
@@ -356,6 +358,12 @@ textarea:focus{border-color:var(--accent)}
       <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" onclick="revertAllAI()" id="revertAIBtn" style="display:none">&#8635; Revert AI changes</button>
       <span style="font-size:12px;color:#b45309">Uses Claude to look up each company and correct their type.</span>
       <span id="rebatch-status" style="font-size:12px;margin-left:auto"></span>
+    </div>
+    <div id="dedup-bar" style="display:none;background:#f0fdf4;border:1px solid rgba(22,163,74,.25);border-radius:6px;padding:9px 14px;margin-bottom:12px;font-size:13px;color:#14532d;display:none;align-items:center;gap:10px;flex-wrap:wrap">
+      <span id="dedup-summary"></span>
+      <button class="btn btn-outline" style="font-size:12px;padding:4px 12px;color:var(--green);border-color:rgba(22,163,74,.4)" onclick="runDedup()">&#9003; Remove true duplicates</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" onclick="filterStaleDupes()">&#9873; Review stale records</button>
+      <span id="dedup-status" style="font-size:12px;margin-left:auto"></span>
     </div>
     <div class="tbl-wrap" id="tbl"></div>
   </div>
@@ -953,7 +961,8 @@ function getFiltered() {
     if(fst && p.licenseStatus !== fst) return false
     if(fr && p.distanceMiles != null && p.distanceMiles > fr) return false
     if(fc === 'challenged' && !p.challenged) return false
-    if(fc && fc !== 'challenged' && !p.challenged && (p.classConfidence||'low') !== fc) return false
+    if(fc === 'stale' && !p.staleDupe) return false
+    if(fc && fc !== 'challenged' && fc !== 'stale' && !p.challenged && !p.staleDupe && (p.classConfidence||'low') !== fc) return false
     if(q && !((p.businessName||'').toLowerCase().includes(q)||(p.city||'').toLowerCase().includes(q)||(p.address||'').toLowerCase().includes(q)||(p.contactName||'').toLowerCase().includes(q))) return false
     return true
   }).sort((a,b) => {
@@ -978,7 +987,8 @@ function statusBadge(s) {
   return `<span class="bg ${cls}">${s||'unknown'}</span>`
 }
 function confBadge(p) {
-  if(p.challenged) return `<span class="conf-corr">corrected</span>`
+  if(p.challenged)              return `<span class="conf-corr">corrected</span>`
+  if(p.staleDupe)               return `<span class="conf-stale">stale dupe?</span>`
   const c = p.classConfidence||'low'
   if(c==='high')   return `<span class="conf-high">confirmed</span>`
   if(c==='medium') return `<span class="conf-med">likely</span>`
@@ -1085,7 +1095,7 @@ function render() {
       <td style="color:var(--muted2);font-size:13px">${p.contactName||'—'}</td>
       <td style="color:var(--muted2);font-size:13px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.contactTitle||'—'}</td>
       <td style="white-space:nowrap">${confBadge(p)}${p.challengeNote?`<span title="${p.challengeNote}" style="color:var(--muted);font-size:11px;margin-left:4px">ⓘ</span>`:''}</td>
-      <td><button class="btn-ch" onclick="openChallenge('${p.id}')" title="Challenge this classification">&#9873;</button></td>
+      <td><button class="btn-ch" onclick="openChallenge('${p.id}')" title="Challenge this classification">&#9873;</button><button class="btn-ch" onclick="deleteRecord('${p.id}')" title="Delete this record" style="color:var(--red)">&#10005;</button></td>
     </tr>`).join('')}</tbody>
   </table>${rows.length>500?`<div style="text-align:center;padding:10px;font-size:12px;color:var(--muted)">Showing 500 of ${rows.length} — export to Excel to see all</div>`:''}`
 }
@@ -1121,6 +1131,7 @@ function renderAll() {
   try { render() }         catch(e) { console.error('render error:', e) }
   try { renderDBList() }   catch(e) { console.error('renderDBList error:', e) }
   try { renderUploadLog() } catch(e) { console.error('renderUploadLog error:', e) }
+  try { checkDedup() }     catch(e) { console.error('checkDedup error:', e) }
 }
 
 // ─── Tab switching ────────────────────────────────────────
@@ -1595,7 +1606,143 @@ If you cannot determine the type from the name alone, use "other" with confidenc
 }
 
 
-// ─── Revert functions ─────────────────────────────────────
+// ─── Deduplication engine ────────────────────────────────
+function norm(s) { return (s||'').toLowerCase().replace(/[^a-z0-9]/g,' ').replace(/\s+/g,' ').trim() }
+function normCompany(s) {
+  return norm(s).replace(/\b(llc|inc|corp|co|ltd|lp|pllc|dba|the)\b/g,'').replace(/\s+/g,' ').trim()
+}
+function fuzzyMatch(a, b) {
+  const na = normCompany(a), nb = normCompany(b)
+  if(!na || !nb) return false
+  if(na === nb) return true
+  // One contains the other (handles "Green Leaf" vs "Green Leaf Farms LLC")
+  if(na.length > 4 && nb.length > 4 && (na.includes(nb) || nb.includes(na))) return true
+  return false
+}
+
+function analyzeDedup() {
+  const trueDupes   = []  // auto-remove
+  const staleDupes  = []  // flag for review
+  const toRemoveIds = new Set()
+
+  // ── Rule 1: Same person + same company + same title → true dupe
+  const byPersonCompanyTitle = {}
+  for(const p of prospects) {
+    if(!p.contactName) continue
+    const key = `${norm(p.contactName)}|${normCompany(p.businessName)}|${norm(p.contactTitle)}`
+    if(!byPersonCompanyTitle[key]) byPersonCompanyTitle[key] = []
+    byPersonCompanyTitle[key].push(p)
+  }
+  for(const [key, group] of Object.entries(byPersonCompanyTitle)) {
+    if(group.length < 2) continue
+    // Keep the one with the most data, remove the rest
+    group.sort((a,b) => {
+      const scoreA = [a.email,a.phone,a.address,a.licenseNumber].filter(Boolean).length
+      const scoreB = [b.email,b.phone,b.address,b.licenseNumber].filter(Boolean).length
+      return scoreB - scoreA
+    })
+    for(const dupe of group.slice(1)) {
+      if(!toRemoveIds.has(dupe.id)) {
+        trueDupes.push({keep: group[0], remove: dupe, reason: 'Same person, company, and title'})
+        toRemoveIds.add(dupe.id)
+      }
+    }
+  }
+
+  // ── Rule 2: Same company + same address + no contact name on both → true dupe
+  const byCompanyAddr = {}
+  for(const p of prospects) {
+    if(p.contactName || !p.address || !p.businessName) continue
+    const key = `${normCompany(p.businessName)}|${norm(p.address)}`
+    if(!byCompanyAddr[key]) byCompanyAddr[key] = []
+    byCompanyAddr[key].push(p)
+  }
+  for(const [key, group] of Object.entries(byCompanyAddr)) {
+    if(group.length < 2) continue
+    group.sort((a,b) => {
+      const scoreA = [a.email,a.phone,a.licenseNumber,a.website].filter(Boolean).length
+      const scoreB = [b.email,b.phone,b.licenseNumber,b.website].filter(Boolean).length
+      return scoreB - scoreA
+    })
+    for(const dupe of group.slice(1)) {
+      if(!toRemoveIds.has(dupe.id)) {
+        trueDupes.push({keep: group[0], remove: dupe, reason: 'Same company and address, no contacts'})
+        toRemoveIds.add(dupe.id)
+      }
+    }
+  }
+
+  // ── Rule 3: Same person + same company + different titles → stale dupe (flag, keep both)
+  const byPersonCompany = {}
+  for(const p of prospects) {
+    if(!p.contactName || !p.businessName) continue
+    const key = `${norm(p.contactName)}|${normCompany(p.businessName)}`
+    if(!byPersonCompany[key]) byPersonCompany[key] = []
+    byPersonCompany[key].push(p)
+  }
+  for(const [key, group] of Object.entries(byPersonCompany)) {
+    if(group.length < 2) continue
+    const titles = [...new Set(group.map(p => norm(p.contactTitle||'')))]
+    if(titles.length > 1) {
+      // Different titles — flag all of them as stale dupes
+      for(const p of group) {
+        if(!toRemoveIds.has(p.id)) staleDupes.push(p)
+      }
+    }
+  }
+
+  return { trueDupes, staleDupes, toRemoveIds }
+}
+
+function checkDedup() {
+  const { trueDupes, staleDupes } = analyzeDedup()
+  const bar = document.getElementById('dedup-bar')
+  const summary = document.getElementById('dedup-summary')
+  if(!bar || !summary) return
+
+  if(trueDupes.length === 0 && staleDupes.length === 0) {
+    bar.style.display = 'none'
+    return
+  }
+  bar.style.display = 'flex'
+  const parts = []
+  if(trueDupes.length)  parts.push(`<strong>${trueDupes.length}</strong> true duplicates found`)
+  if(staleDupes.length) parts.push(`<strong>${staleDupes.length}</strong> possible stale records`)
+  summary.innerHTML = parts.join(' &nbsp;·&nbsp; ')
+}
+
+function runDedup() {
+  const { trueDupes, toRemoveIds } = analyzeDedup()
+  if(!trueDupes.length) {
+    document.getElementById('dedup-status').textContent = 'No true duplicates found.'
+    return
+  }
+  prospects = prospects.filter(p => !toRemoveIds.has(p.id))
+  save()
+  renderAll()
+  document.getElementById('dedup-status').textContent = `✓ Removed ${trueDupes.length} true duplicates.`
+}
+
+function filterStaleDupes() {
+  const { staleDupes } = analyzeDedup()
+  // Mark them all as staleDupe, then filter to show only them
+  for(const p of prospects) p.staleDupe = false
+  for(const p of staleDupes) p.staleDupe = true
+  save()
+  // Set filter to stale and re-render
+  document.getElementById('fc').value = 'stale'
+  render()
+  document.getElementById('dedup-status').textContent =
+    `Showing ${staleDupes.length} possible stale records. Review and delete manually or use the challenge button to correct titles.`
+}
+
+
+function deleteRecord(id) {
+  prospects = prospects.filter(p => p.id !== id)
+  save()
+  renderAll()
+}
+
 function revertAllAI() {
   const aiChanged = prospects.filter(p => p.aiReclassified)
   if(!aiChanged.length) { alert('No AI reclassifications to revert.'); return }
