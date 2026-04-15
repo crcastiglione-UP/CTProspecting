@@ -170,7 +170,6 @@ textarea:focus{border-color:var(--accent)}
 .modal-box select,.modal-box input[type=text]{width:100%;font-size:14px;padding:7px 10px;border:1px solid var(--border);border-radius:4px;font-family:inherit;outline:none}
 .modal-box select:focus,.modal-box input[type=text]:focus{border-color:var(--accent)}
 .modal-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
-.rebatch-bar{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#fffbeb;border:1px solid rgba(217,119,6,.25);border-radius:6px;margin-bottom:12px;font-size:13px;color:#92400e}
 .syncbar{background:#f8fafc;border-bottom:1px solid var(--border);padding:8px 20px;display:flex;align-items:center;gap:10px;font-size:12px;flex-shrink:0;flex-wrap:wrap}
 .syncbar label{color:var(--muted);white-space:nowrap;flex-shrink:0}
 .syncbar input{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:4px;font-family:inherit;font-size:12px;outline:none}
@@ -189,7 +188,7 @@ textarea:focus{border-color:var(--accent)}
   <div class="topbar">
     <div style="font-family:'Duplet',sans-serif;font-size:22px;font-weight:700;white-space:nowrap;flex-shrink:0;letter-spacing:-.2px">
       <span style="color:var(--text)">CLEAN</span><span style="color:var(--accent)">Theory</span><span style="color:var(--muted);font-size:13px;font-weight:400;margin-left:14px;font-family:'IBM Plex Mono',monospace;letter-spacing:0">Prospect Intelligence</span>
-      <span style="color:var(--muted);font-size:10px;font-weight:400;margin-left:10px;font-family:'IBM Plex Mono',monospace;background:var(--surface2);padding:2px 7px;border-radius:4px;vertical-align:middle">v1.22 &nbsp;·&nbsp; Apr 15 2026</span>
+      <span style="color:var(--muted);font-size:10px;font-weight:400;margin-left:10px;font-family:'IBM Plex Mono',monospace;background:var(--surface2);padding:2px 7px;border-radius:4px;vertical-align:middle">v1.23 &nbsp;·&nbsp; Apr 15 2026</span>
     </div>
     <div class="topbar-mid">
       <div class="tab-nav">
@@ -310,8 +309,9 @@ textarea:focus{border-color:var(--accent)}
 
   <!-- PANE: Prospect List -->
   <div class="pane" id="pane-list">
-    <div class="filters">
-      <input type="text" id="q" placeholder="Search businesses..." oninput="render()" style="width:180px">
+    <!-- Primary filter row -->
+    <div class="filters" style="margin-bottom:8px">
+      <input type="text" id="q" placeholder="Search businesses..." oninput="render()" style="width:200px">
       <select id="fs" onchange="render()">
         <option value="">All states</option>
         <option value="MA">MA &mdash; Priority 1</option>
@@ -334,30 +334,6 @@ textarea:focus{border-color:var(--accent)}
         <option value="dispensary">Dispensaries</option>
         <option value="other">Other</option>
       </select>
-      <select id="fst" onchange="render()">
-        <option value="">All statuses</option>
-        <option value="active">Active</option>
-        <option value="pending">Pending</option>
-        <option value="expired">Expired</option>
-        <option value="unknown">Unknown</option>
-      </select>
-      <select id="fout" onchange="render()" title="Filter by outreach status">
-        <option value="">All outreach</option>
-        <option value="none">Not contacted</option>
-        <option value="contacted">Contacted</option>
-        <option value="responded">Responded</option>
-        <option value="meeting">Meeting set</option>
-        <option value="not_interested">Not interested</option>
-        <option value="customer">Customer</option>
-      </select>
-      <select id="fc" onchange="render()">
-        <option value="">All confidence</option>
-        <option value="high">Confirmed</option>
-        <option value="medium">Likely</option>
-        <option value="low">Guessed</option>
-        <option value="challenged">Corrected</option>
-        <option value="stale">Possible stale dupe</option>
-      </select>
       <select id="fr" onchange="render()" title="Distance from Easthampton, MA">
         <option value="">Any distance</option>
         <option value="25">Within 25 mi</option>
@@ -375,23 +351,59 @@ textarea:focus{border-color:var(--accent)}
         <option value="450">Within 450 mi</option>
         <option value="500">Within 500 mi</option>
       </select>
-      <span style="font-size:12px;color:var(--muted)">&#8982; Easthampton, MA</span>
-      <span class="rc" id="rc"></span>
+      <button onclick="toggleMoreFilters()" id="moreFiltersBtn"
+        style="background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:7px 12px;border-radius:4px;font-size:13px;cursor:pointer;white-space:nowrap">
+        ⚙ More filters <span id="moreFiltersBadge" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;margin-left:4px"></span>
+      </button>
+      <span style="font-size:12px;color:var(--muted);margin-left:2px">&#8982; Easthampton, MA</span>
+      <span class="rc" id="rc" style="margin-left:auto"></span>
+      <button onclick="toggleDataQuality()" id="dqBtn" style="display:none;background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:7px 12px;border-radius:4px;font-size:13px;cursor:pointer;white-space:nowrap">
+        🔧 Data quality <span id="dqBadge" style="background:var(--amber);color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;margin-left:4px"></span>
+      </button>
     </div>
-    <div id="rebatch-bar" style="display:none" class="rebatch-bar">
-      <span id="rebatch-count"></span>
-      <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" onclick="batchReclassify()">&#9889; Reclassify with AI</button>
-      <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" onclick="revertAllAI()" id="revertAIBtn" style="display:none">&#8635; Revert AI changes</button>
-      <span style="font-size:12px;color:#b45309">Uses Claude to look up each company and correct their type.</span>
-      <span id="rebatch-status" style="font-size:12px;margin-left:auto"></span>
+
+    <!-- Secondary filters (hidden by default) -->
+    <div id="moreFiltersRow" style="display:none;margin-bottom:10px" class="filters">
+      <select id="fst" onchange="render();updateMoreFiltersBadge()">
+        <option value="">All statuses</option>
+        <option value="active">Active</option>
+        <option value="pending">Pending</option>
+        <option value="expired">Expired</option>
+        <option value="unknown">Unknown</option>
+      </select>
+      <select id="fout" onchange="render();updateMoreFiltersBadge()" title="Filter by outreach status">
+        <option value="">All outreach</option>
+        <option value="none">Not contacted</option>
+        <option value="contacted">Contacted</option>
+        <option value="responded">Responded</option>
+        <option value="meeting">Meeting set</option>
+        <option value="not_interested">Not interested</option>
+        <option value="customer">Customer</option>
+      </select>
+      <select id="fc" onchange="render();updateMoreFiltersBadge()">
+        <option value="">All confidence</option>
+        <option value="high">Confirmed</option>
+        <option value="medium">Likely</option>
+        <option value="low">Guessed</option>
+        <option value="challenged">Corrected</option>
+        <option value="stale">Possible stale dupe</option>
+      </select>
     </div>
-    <div id="dedup-bar" style="display:none;background:#f0fdf4;border:1px solid rgba(22,163,74,.25);border-radius:6px;padding:9px 14px;margin-bottom:12px;font-size:13px;color:#14532d;align-items:center;gap:10px;flex-wrap:wrap">
-      <span id="dedup-summary"></span>
-      <button class="btn btn-outline" style="font-size:12px;padding:4px 12px;color:var(--green);border-color:rgba(22,163,74,.4)" onclick="runDedup()">&#9003; Remove true duplicates</button>
-      <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" onclick="filterStaleDupes()">&#9873; Review stale records</button>
-      <button class="btn btn-outline" style="font-size:12px;padding:4px 12px;color:var(--red);border-color:rgba(220,38,38,.3)" onclick="deleteNonTargetStates()" title="Delete all records from CA, NV, MO, IL and other non-target states">&#10005; Remove non-target states</button>
-      <span id="dedup-status" style="font-size:12px;margin-left:auto"></span>
+
+    <!-- Data quality panel (hidden by default) -->
+    <div id="dqPanel" style="display:none;background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:12px 16px;margin-bottom:12px;font-size:13px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span id="dq-dedup-summary" style="color:var(--muted)"></span>
+        <button class="btn btn-outline" style="font-size:12px;padding:4px 12px" id="dqReclassifyBtn" onclick="batchReclassify()">&#9889; Reclassify types with AI</button>
+        <button class="btn btn-outline" style="font-size:12px;padding:4px 12px;display:none" onclick="revertAllAI()" id="revertAIBtn">&#8635; Revert AI changes</button>
+        <button class="btn btn-outline" style="font-size:12px;padding:4px 12px;color:var(--green);border-color:rgba(22,163,74,.4);display:none" onclick="runDedup()" id="dqDedupBtn">&#9003; Remove true duplicates</button>
+        <button class="btn btn-outline" style="font-size:12px;padding:4px 12px;display:none" onclick="filterStaleDupes()" id="dqStaleBtn">&#9873; Review stale records</button>
+        <button class="btn btn-outline" style="font-size:12px;padding:4px 12px;color:var(--red);border-color:rgba(220,38,38,.3)" onclick="deleteNonTargetStates()">&#10005; Remove non-target states</button>
+        <span id="dq-status" style="font-size:12px;margin-left:auto;color:var(--muted)"></span>
+      </div>
+      <div id="dq-reclassify-status" style="font-size:12px;color:var(--muted);margin-top:6px;display:none"></div>
     </div>
+
     <div class="tbl-wrap" id="tbl"></div>
   </div>
 
@@ -804,8 +816,8 @@ function setReadOnly(val) {
   if(banner) banner.style.display = val ? 'flex' : 'none'
   const pushBtn = document.getElementById('ghPushBtn')
   if(pushBtn) { pushBtn.style.opacity = val ? '.35' : '1'; pushBtn.style.pointerEvents = val ? 'none' : '' }
-  const reNote = document.getElementById('rebatch-status')
-  if(reNote && val) reNote.innerHTML = '<span style="color:var(--amber)">⚠ Read-only — AI changes are local only and won\'t sync to teammates</span>'
+  const reNote = document.getElementById('dq-reclassify-status')
+  if(reNote && val) { reNote.style.display=''; reNote.innerHTML = '<span style="color:var(--amber)">⚠ Read-only — AI changes are local only and won\'t sync to teammates</span>' }
 }
 
 function getGhToken()  { return (document.getElementById('ghToken')?.value||'').trim() || (localStorage.getItem('ct_ghtoken')||'') }
@@ -1182,6 +1194,31 @@ function getFiltered() {
   })
 }
 
+function toggleMoreFilters() {
+  const row = document.getElementById('moreFiltersRow')
+  const btn = document.getElementById('moreFiltersBtn')
+  const open = row.style.display === 'none' || row.style.display === ''
+  row.style.display = open ? 'flex' : 'none'
+  updateMoreFiltersBadge()
+}
+
+function updateMoreFiltersBadge() {
+  const fst = document.getElementById('fst').value
+  const fout = document.getElementById('fout').value
+  const fc = document.getElementById('fc').value
+  const count = [fst,fout,fc].filter(Boolean).length
+  const badge = document.getElementById('moreFiltersBadge')
+  const btn = document.getElementById('moreFiltersBtn')
+  if(badge) { badge.textContent = count; badge.style.display = count ? '' : 'none' }
+  if(btn) btn.style.borderColor = count ? 'var(--accent)' : ''
+}
+
+function toggleDataQuality() {
+  const panel = document.getElementById('dqPanel')
+  panel.style.display = panel.style.display === 'none' ? '' : 'none'
+}
+
+
 function sortBy(f) {
   if(sortF === f) sortD *= -1; else { sortF = f; sortD = -1 }
   render()
@@ -1269,19 +1306,7 @@ function renderStats() {
     `<div class="spill"><b>${s}</b><span>${c}</span></div>`
   ).join('')
 
-  // Show/hide reclassify bar
-  const bar = document.getElementById('rebatch-bar')
-  if(bar) {
-    const aiCount = prospects.filter(p => p.aiReclassified).length
-    const revertBtn = document.getElementById('revertAIBtn')
-    if(needsRev > 0 || aiCount > 0) {
-      bar.style.display = 'flex'
-      document.getElementById('rebatch-count').textContent = `${needsRev} records have low-confidence classifications.`
-      if(revertBtn) revertBtn.style.display = aiCount > 0 ? '' : 'none'
-    } else {
-      bar.style.display = 'none'
-    }
-  }
+  // Data quality button is updated by checkDedup() — no action needed here
 }
 
 // ─── Infinite scroll state ───────────────────────────────
@@ -1295,12 +1320,11 @@ function rowHtml(p) {
     const dist = p.distanceMiles != null
       ? (p.distanceMiles < 1 ? '&lt; 1 mi' : `${p.distanceMiles} mi`) + (p.distEstimated ? '<span style="color:var(--muted);font-size:11px"> ~</span>' : '')
       : '—'
-    const li = p.linkedIn
-      ? `<a href="${escAttr(p.linkedIn.startsWith('http')?p.linkedIn:'https://'+p.linkedIn)}" target="_blank" style="color:var(--blue);font-size:12px;text-decoration:none" title="${escAttr(p.linkedIn)}">LinkedIn ↗</a>`
-      : '—'
-    const nameCell = p.address
-      ? `<span title="${escAttr(p.address)}" style="cursor:help;border-bottom:1px dotted var(--muted)">${p.businessName||''}</span>`
-      : (p.businessName||'')
+    // Business name: address tooltip + indicators for license/LinkedIn
+    const indicators = []
+    if(p.licenseNumber) indicators.push(`<span title="License: ${escAttr(p.licenseNumber)}" style="color:var(--green);font-size:10px;cursor:help">✓</span>`)
+    if(p.linkedIn) indicators.push(`<a href="${escAttr(p.linkedIn.startsWith('http')?p.linkedIn:'https://'+p.linkedIn)}" target="_blank" style="color:var(--blue);font-size:10px;text-decoration:none" title="LinkedIn">in</a>`)
+    const nameCell = `<span${p.address?` title="${escAttr(p.address)}" style="cursor:help;border-bottom:1px dotted var(--muted)"`:''}>${p.businessName||''}</span>${indicators.length?' <span style="margin-left:4px">'+indicators.join(' ')+'</span>':''}`
     return `<tr>
       <td style="white-space:nowrap">
         <div class="sc-wrap">
@@ -1309,22 +1333,18 @@ function rowHtml(p) {
         </div>
       </td>
       <td style="white-space:nowrap;color:var(--muted2);font-size:13px">${dist}</td>
-      <td class="trunc" style="font-weight:500;max-width:200px">${nameCell}</td>
+      <td class="trunc" style="font-weight:500;max-width:220px">${nameCell}</td>
       <td>${typeBadge(p.entityType)}</td>
       <td style="white-space:nowrap"><span style="font-weight:600;color:var(--accent)">${p.state||'?'}</span>${SP[p.state]?`<span style="font-size:10px;color:var(--muted);margin-left:3px">P${SP[p.state]}</span>`:''}</td>
-      <td style="color:var(--muted2)">${p.city||''}</td>
-      <td>${statusBadge(p.licenseStatus)}</td>
-      <td style="color:var(--muted);font-size:13px">${p.licenseNumber||'—'}</td>
-      <td style="color:var(--muted2);font-size:13px">${p.phone||'—'}</td>
-      <td style="color:var(--muted2);font-size:13px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.email||'—'}</td>
-      <td style="font-size:13px">${li}</td>
+      <td style="color:var(--muted2)">${p.city||'—'}</td>
       <td style="color:var(--muted2);font-size:13px">${p.contactName||'—'}</td>
-      <td style="color:var(--muted2);font-size:13px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.contactTitle||'—'}</td>
+      <td style="color:var(--muted2);font-size:13px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.contactTitle||'—'}</td>
+      <td style="color:var(--muted2);font-size:13px;white-space:nowrap">${p.phone||'—'}</td>
+      <td style="color:var(--muted2);font-size:13px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.email||'—'}</td>
       <td style="white-space:nowrap">${outBadge(p)}</td>
-      <td style="white-space:nowrap">${confBadge(p)}${p.challengeNote?`<span title="${escAttr(p.challengeNote)}" style="color:var(--muted);font-size:11px;margin-left:4px">ⓘ</span>`:''}</td>
       <td style="position:sticky;right:0;background:var(--surface);white-space:nowrap;border-left:1px solid var(--border)"><button class="btn-ch" onclick="openChallenge('${p.id}')" title="Challenge classification">&#9873;</button><button class="btn-ch" onclick="deleteRecord('${p.id}')" title="Delete record" style="color:var(--red)">&#10005;</button></td>
     </tr>`
-  } catch(e) { return `<tr><td colspan="16" style="color:var(--red);font-size:12px;padding:6px 14px">Row error: ${e.message}</td></tr>` }
+  } catch(e) { return `<tr><td colspan="12" style="color:var(--red);font-size:12px;padding:6px 14px">Row error: ${e.message}</td></tr>` }
 }
 
 function appendRows() {
@@ -1377,8 +1397,11 @@ function render() {
         ${thH('entityType','Type')}
         ${thH('state','State')}
         ${thH('city','City')}
-        ${thH('licenseStatus','Status')}
-        <th>License #</th><th>Phone</th><th>Email</th><th>LinkedIn</th><th>Contact</th><th>Title</th><th>Outreach</th><th>Confidence</th>
+        ${thH('contactName','Contact')}
+        ${thH('contactTitle','Title')}
+        ${thH('phone','Phone')}
+        ${thH('email','Email')}
+        <th>Outreach</th>
         <th style="position:sticky;right:0;background:#f8fafc;z-index:2;min-width:64px">Actions</th>
       </tr></thead>
       <tbody id="tbl-body"></tbody>
@@ -1866,8 +1889,8 @@ async function batchReclassify() {
   if(!lowConf.length) { alert('No low-confidence records to reclassify.'); return }
 
   const batch = lowConf.slice(0, 50) // process up to 50 at a time
-  const statusEl = document.getElementById('rebatch-status')
-  statusEl.textContent = `Analyzing ${batch.length} companies…`
+  const statusEl = document.getElementById('dq-reclassify-status')
+  if(statusEl) { statusEl.style.display = ''; statusEl.textContent = `Analyzing ${batch.length} companies…` }
 
   const companyList = [...new Set(batch.map(p => p.businessName))].slice(0, 40)
   const prompt = `You are classifying cannabis industry companies. For each company name below, determine what type of cannabis business it is based on the company name alone.
@@ -1917,7 +1940,7 @@ If you cannot determine the type from the name alone, use "other" with confidenc
     }
     save()
     renderAll()
-    statusEl.textContent = `✓ Updated ${updated} records.`
+    if(statusEl) statusEl.textContent = `✓ Updated ${updated} records.`
     const revertBtn = document.getElementById('revertAIBtn')
     if(revertBtn && updated > 0) revertBtn.style.display = ''
   } catch(err) {
@@ -2017,44 +2040,58 @@ function analyzeDedup() {
 
 function checkDedup() {
   const { trueDupes, staleDupes } = analyzeDedup()
-  const bar = document.getElementById('dedup-bar')
-  const summary = document.getElementById('dedup-summary')
-  if(!bar || !summary) return
+  const dqBtn = document.getElementById('dqBtn')
+  const dqBadge = document.getElementById('dqBadge')
+  const summary = document.getElementById('dq-dedup-summary')
+  const dedupBtn = document.getElementById('dqDedupBtn')
+  const staleBtn = document.getElementById('dqStaleBtn')
+  const aiCount = prospects.filter(p => p.aiReclassified).length
+  const lowCount = prospects.filter(p => !p.challenged && (p.classConfidence||'low') === 'low').length
 
-  if(trueDupes.length === 0 && staleDupes.length === 0) {
-    bar.style.display = 'none'
-    return
+  // Show/hide data quality button
+  const totalIssues = trueDupes.length + staleDupes.length + aiCount
+  if(dqBtn) dqBtn.style.display = (totalIssues > 0 || lowCount > 0) ? '' : 'none'
+  if(dqBadge) {
+    const n = trueDupes.length + staleDupes.length
+    dqBadge.textContent = n > 0 ? n + ' issues' : lowCount + ' to review'
   }
-  bar.style.display = 'flex'
+
+  // Update summary text inside panel
   const parts = []
-  if(trueDupes.length)  parts.push(`<strong>${trueDupes.length}</strong> true duplicates found`)
-  if(staleDupes.length) parts.push(`<strong>${staleDupes.length}</strong> possible stale records`)
-  summary.innerHTML = parts.join(' &nbsp;·&nbsp; ')
+  if(trueDupes.length) parts.push(`<strong>${trueDupes.length}</strong> true dupes`)
+  if(staleDupes.length) parts.push(`<strong>${staleDupes.length}</strong> stale records`)
+  if(lowCount) parts.push(`<strong>${lowCount}</strong> unclassified`)
+  if(summary) summary.innerHTML = parts.join(' &nbsp;·&nbsp; ')
+
+  // Show/hide individual buttons
+  if(dedupBtn) dedupBtn.style.display = trueDupes.length ? '' : 'none'
+  if(staleBtn) staleBtn.style.display = staleDupes.length ? '' : 'none'
+  const revertBtn = document.getElementById('revertAIBtn')
+  if(revertBtn) revertBtn.style.display = aiCount ? '' : 'none'
 }
 
 function runDedup() {
   const { trueDupes, toRemoveIds } = analyzeDedup()
-  if(!trueDupes.length) {
-    document.getElementById('dedup-status').textContent = 'No true duplicates found.'
-    return
-  }
+  const statusEl = document.getElementById('dq-status')
+  if(!trueDupes.length) { if(statusEl) statusEl.textContent = 'No true duplicates found.'; return }
   prospects = prospects.filter(p => !toRemoveIds.has(p.id))
   save()
   renderAll()
-  document.getElementById('dedup-status').textContent = `✓ Removed ${trueDupes.length} true duplicates.`
+  if(statusEl) statusEl.textContent = `✓ Removed ${trueDupes.length} true duplicates.`
 }
 
 function filterStaleDupes() {
   const { staleDupes } = analyzeDedup()
-  // Mark them all as staleDupe, then filter to show only them
   for(const p of prospects) p.staleDupe = false
   for(const p of staleDupes) p.staleDupe = true
   save()
-  // Set filter to stale and re-render
-  document.getElementById('fc').value = 'stale'
+  const fc = document.getElementById('fc')
+  if(fc) fc.value = 'stale'
+  const moreFiltersRow = document.getElementById('moreFiltersRow')
+  if(moreFiltersRow) moreFiltersRow.style.display = 'flex'
   render()
-  document.getElementById('dedup-status').textContent =
-    `Showing ${staleDupes.length} possible stale records. Review and delete manually or use the challenge button to correct titles.`
+  const statusEl = document.getElementById('dq-status')
+  if(statusEl) statusEl.textContent = `Showing ${staleDupes.length} possible stale records.`
 }
 
 
@@ -2075,7 +2112,7 @@ function bulkDelete(count) {
 function deleteNonTargetStates() {
   const targetStates = new Set(['MA','NJ','NY','PA','CT','RI','ME','NH','VT','MD','VA'])
   const nonTarget = prospects.filter(p => p.state && !targetStates.has(p.state))
-  if(!nonTarget.length) { document.getElementById('dedup-status').textContent = 'No non-target state records found.'; return }
+  if(!nonTarget.length) { const s=document.getElementById('dq-status'); if(s) s.textContent='No non-target state records found.'; return }
   const bySt = {}
   for(const p of nonTarget) bySt[p.state] = (bySt[p.state]||0)+1
   const summary = Object.entries(bySt).sort((a,b)=>b[1]-a[1]).map(([s,c])=>`${s}: ${c}`).join(', ')
@@ -2084,7 +2121,8 @@ function deleteNonTargetStates() {
   prospects = prospects.filter(p => !toDelete.has(p.id))
   save()
   renderAll()
-  document.getElementById('dedup-status').textContent = `✓ Removed ${nonTarget.length} non-target records.`
+  const statusEl = document.getElementById('dq-status')
+  if(statusEl) statusEl.textContent = `✓ Removed ${nonTarget.length} non-target records.`
 }
 
 function revertAllAI() {
@@ -2102,7 +2140,8 @@ function revertAllAI() {
   }
   save()
   renderAll()
-  document.getElementById('rebatch-status').textContent = `✓ Reverted ${aiChanged.length} records to original classifications.`
+  const statusEl = document.getElementById('dq-status')
+  if(statusEl) statusEl.textContent = `✓ Reverted ${aiChanged.length} records to original classifications.`
 }
 
 function revertSingle(id) {
