@@ -220,6 +220,16 @@ textarea:focus{border-color:var(--accent)}
   <!-- Debug panel -->
   <div id="debugPanel" style="display:none;background:#1a1a2e;color:#e2e8f0;font-family:monospace;font-size:12px;padding:12px 20px;border-bottom:1px solid #333;max-height:200px;overflow-y:auto;white-space:pre-wrap;line-height:1.6">Sync debug log will appear here after clicking Sync now.</div>
 
+  <!-- Read-only banner -->
+  <div id="readonlyBanner" style="display:none;background:#fef3c7;border-bottom:2px solid #f59e0b;padding:10px 20px;font-size:13px;color:#78350f;display:none;align-items:center;gap:12px;flex-shrink:0">
+    <span style="font-size:18px">🔒</span>
+    <div>
+      <strong>Read-only mode</strong> — your changes are visible locally but won't sync to teammates.
+      To get write access, enter the Gist owner's GitHub token in the sync bar above.
+    </div>
+    <div style="margin-left:auto;white-space:nowrap;font-size:12px;opacity:.8">Syncing and viewing work normally &nbsp;·&nbsp; Importing, scraping, and challenges are local only</div>
+  </div>
+
   <!-- Stats (always visible) -->
   <div class="stats-wrap">
     <div class="stats-grid" id="stats">
@@ -273,7 +283,8 @@ textarea:focus{border-color:var(--accent)}
       <input type="text" id="challengeNote" placeholder="e.g. Checked their website — extraction only, no cultivation">
       <div class="modal-acts">
         <button class="btn btn-outline" onclick="closeChallenge()">Cancel</button>
-        <button class="btn btn-primary" onclick="saveChallenge()">Save correction</button>
+        <button class="btn btn-primary" onclick="saveChallenge()" id="challengeSaveBtn">Save correction</button>
+        <span id="challengeReadonlyNote" style="display:none;font-size:11px;color:var(--amber);align-self:center">⚠ Read-only — won't sync</span>
       </div>
     </div>
   </div>
@@ -578,6 +589,17 @@ const GIST_FILENAME = 'ct_prospects.json'
 let gistSaveTimer = null
 let lastGistEtag = null
 let isSyncing = false
+let isReadOnly = false
+
+function setReadOnly(val) {
+  isReadOnly = val
+  const banner = document.getElementById('readonlyBanner')
+  if(banner) banner.style.display = val ? 'flex' : 'none'
+  const pushBtn = document.getElementById('ghPushBtn')
+  if(pushBtn) { pushBtn.style.opacity = val ? '.35' : '1'; pushBtn.style.pointerEvents = val ? 'none' : '' }
+  const reNote = document.getElementById('rebatch-status')
+  if(reNote && val) reNote.innerHTML = '<span style="color:var(--amber)">⚠ Read-only — AI changes are local only and won\'t sync to teammates</span>'
+}
 
 function getGhToken()  { return (document.getElementById('ghToken')?.value||'').trim() || (localStorage.getItem('ct_ghtoken')||'') }
 function getGhGistId() { return (document.getElementById('ghGistId')?.value||'').trim() || (localStorage.getItem('ct_gistid')||'') }
@@ -694,9 +716,9 @@ async function saveToGist() {
       body: JSON.stringify({ files:{ [GIST_FILENAME]:{ content: buildGistPayload().files[GIST_FILENAME].content } } })
     })
     if(res.status === 404 || res.status === 403) {
-      // Not the Gist owner — switch to read-only mode silently
       dbg(`Save returned ${res.status} — this token does not own the Gist. Read-only mode.`)
-      setSyncStatus('warn', '<span class="sync-dot sync-warn"></span>Read-only — sync works but saves require the Gist owner\'s token')
+      setReadOnly(true)
+      setSyncStatus('warn', '<span class="sync-dot sync-warn"></span>Read-only — enter the Gist owner\'s token for write access')
       isSyncing = false
       return
     }
@@ -1409,6 +1431,8 @@ function openChallenge(id) {
   document.getElementById('modal-current').textContent = typeLabels[p.entityType] || p.entityType || '—'
   document.getElementById('challengeType').value = p.entityType || 'cultivator'
   document.getElementById('challengeNote').value = p.challengeNote || ''
+  const roNote = document.getElementById('challengeReadonlyNote')
+  if(roNote) roNote.style.display = isReadOnly ? 'block' : 'none'
   document.getElementById('challengeModal').classList.add('open')
 }
 
