@@ -179,7 +179,7 @@ textarea:focus{border-color:var(--accent)}
   <div class="topbar">
     <div style="font-family:'Duplet',sans-serif;font-size:22px;font-weight:700;white-space:nowrap;flex-shrink:0;letter-spacing:-.2px">
       <span style="color:var(--text)">CLEAN</span><span style="color:var(--accent)">Theory</span><span style="color:var(--muted);font-size:13px;font-weight:400;margin-left:14px;font-family:'IBM Plex Mono',monospace;letter-spacing:0">Prospect Intelligence</span>
-      <span style="color:var(--muted);font-size:10px;font-weight:400;margin-left:10px;font-family:'IBM Plex Mono',monospace;background:var(--surface2);padding:2px 7px;border-radius:4px;vertical-align:middle">v1.24 &nbsp;·&nbsp; Apr 15 2026</span>
+      <span style="color:var(--muted);font-size:10px;font-weight:400;margin-left:10px;font-family:'IBM Plex Mono',monospace;background:var(--surface2);padding:2px 7px;border-radius:4px;vertical-align:middle">v1.25 &nbsp;·&nbsp; Apr 15 2026</span>
     </div>
     <div class="topbar-mid">
       <div class="tab-nav">
@@ -1903,17 +1903,47 @@ function saveChallenge() {
 // ─── Batch AI reclassify ──────────────────────────────────
 async function batchReclassify() {
   const apiKey = getKey()
-  if(!apiKey) { alert('Enter your Anthropic API key first.'); return }
+  if(!apiKey) { alert('Enter your Anthropic API key in Settings first.'); return }
 
-  const lowConf = prospects.filter(p => !p.challenged && (p.classConfidence||'low') === 'low')
-  if(!lowConf.length) { alert('No low-confidence records to reclassify.'); return }
-
-  const batch = lowConf.slice(0, 50) // process up to 50 at a time
   const statusEl = document.getElementById('dq-reclassify-status')
-  if(statusEl) { statusEl.style.display = ''; statusEl.textContent = `Analyzing ${batch.length} companies…` }
+  const btn = document.getElementById('dqReclassifyBtn')
 
-  const companyList = [...new Set(batch.map(p => p.businessName))].slice(0, 40)
-  const prompt = `You are classifying cannabis industry companies. For each company name below, determine what type of cannabis business it is based on the company name alone.
+  // Allow cancellation
+  if(btn && btn.dataset.running === 'true') {
+    btn.dataset.running = 'false'
+    if(statusEl) statusEl.textContent = 'Stopped.'
+    if(btn) btn.textContent = '⚡ Reclassify types with AI'
+    return
+  }
+
+  const allLowConf = () => prospects.filter(p => !p.challenged && (p.classConfidence||'low') === 'low')
+  if(!allLowConf().length) {
+    if(statusEl) { statusEl.style.display=''; statusEl.textContent = '✓ All records already classified.' }
+    return
+  }
+
+  // Mark as running
+  if(btn) { btn.dataset.running = 'true'; btn.textContent = '⏹ Stop reclassifying' }
+  if(statusEl) statusEl.style.display = ''
+
+  const BATCH_SIZE = 40  // unique company names per API call
+  let totalUpdated = 0
+  let batchNum = 0
+
+  while(true) {
+    // Check for stop signal
+    if(btn && btn.dataset.running !== 'true') break
+
+    const remaining = allLowConf()
+    if(!remaining.length) break
+
+    batchNum++
+    const companyList = [...new Set(remaining.map(p => p.businessName))].slice(0, BATCH_SIZE)
+    const totalRemaining = [...new Set(allLowConf().map(p => p.businessName))].length
+
+    if(statusEl) statusEl.textContent = `Batch ${batchNum} — analyzing ${companyList.length} companies… (${totalRemaining} remaining)`
+
+    const prompt = `You are classifying cannabis industry companies. For each company name below, determine what type of cannabis business it is based on the company name alone.
 
 Companies to classify:
 ${companyList.map((n,i) => `${i+1}. ${n}`).join('\n')}
@@ -1925,48 +1955,67 @@ type must be EXACTLY one of: "cultivator", "processor", "testing_lab", "dispensa
 confidence must be EXACTLY one of: "high", "medium", "low"
 If you cannot determine the type from the name alone, use "other" with confidence "low".`
 
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body: JSON.stringify({
-        model:'claude-sonnet-4-6', max_tokens:3000,
-        tools:[{type:'web_search_20250305',name:'web_search'}],
-        messages:[{role:'user',content:prompt}]
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:4000, messages:[{role:'user',content:prompt}] })
       })
-    })
-    const data = await res.json()
-    if(data.error) throw new Error(data.error.message)
-    const txt = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('')
-    const m = txt.match(/\[[\s\S]*\]/)
-    if(!m) throw new Error('No JSON found')
-    const results = JSON.parse(m[0])
+      const data = await res.json()
+      if(data.error) throw new Error(data.error.message)
 
-    let updated = 0
-    for(const r of results) {
-      const matches = prospects.filter(p => !p.challenged && p.businessName === r.name && (p.classConfidence||'low') === 'low')
-      for(const p of matches) {
-        if(r.type && r.type !== p.entityType) {
-          p.entityType      = r.type
-          p.classConfidence = r.confidence === 'high' ? 'medium' : 'low'
-          p.challengeNote   = `AI reclassified: ${r.reason||''}`
-          p.aiReclassified  = true
-          p.priorityScore   = calcScore(p)
-          updated++
-        } else if(r.confidence === 'high') {
-          p.classConfidence = 'medium'
+      const txt = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('')
+      const m = txt.match(/\[[\s\S]*\]/)
+      if(!m) throw new Error('No JSON found in response')
+      const results = JSON.parse(m[0])
+
+      let batchUpdated = 0
+      for(const r of results) {
+        const matches = prospects.filter(p => !p.challenged && p.businessName === r.name && (p.classConfidence||'low') === 'low')
+        for(const p of matches) {
+          if(r.type && r.type !== p.entityType) {
+            p.entityType      = r.type
+            p.classConfidence = r.confidence === 'high' ? 'medium' : 'low'
+            p.challengeNote   = `AI reclassified: ${r.reason||''}`
+            p.aiReclassified  = true
+            p.priorityScore   = calcScore(p)
+            batchUpdated++
+          } else if(r.confidence === 'high') {
+            p.classConfidence = 'medium'
+          }
         }
       }
+      totalUpdated += batchUpdated
+      save()
+      renderAll()
+
+      // If this batch made no progress (all company names unrecognized), break to avoid infinite loop
+      if(batchUpdated === 0 && companyList.length > 0) {
+        // Mark all these companies as 'other' so they don't loop forever
+        for(const name of companyList) {
+          for(const p of prospects.filter(x => x.businessName === name && (x.classConfidence||'low') === 'low')) {
+            p.classConfidence = 'medium'
+            p.challengeNote = 'AI: unable to classify from name alone'
+          }
+        }
+        save()
+      }
+
+      // Small pause between batches to be kind to the API
+      await new Promise(r => setTimeout(r, 500))
+
+    } catch(err) {
+      if(statusEl) statusEl.textContent = `Error on batch ${batchNum}: ${err.message} — click to retry`
+      if(btn) { btn.dataset.running = 'false'; btn.textContent = '⚡ Reclassify types with AI' }
+      return
     }
-    save()
-    renderAll()
-    if(statusEl) statusEl.textContent = `✓ Updated ${updated} records.`
-    const revertBtn = document.getElementById('revertAIBtn')
-    if(revertBtn && updated > 0) revertBtn.style.display = ''
-  } catch(err) {
-    statusEl.textContent = `Error: ${err.message}`
-    console.error(err)
   }
+
+  // Done
+  if(btn) { btn.dataset.running = 'false'; btn.textContent = '⚡ Reclassify types with AI' }
+  if(statusEl) statusEl.textContent = `✓ Done — updated ${totalUpdated} records across ${batchNum} batches`
+  const revertBtn = document.getElementById('revertAIBtn')
+  if(revertBtn && totalUpdated > 0) revertBtn.style.display = ''
 }
 
 
