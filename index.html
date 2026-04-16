@@ -179,7 +179,7 @@ textarea:focus{border-color:var(--accent)}
   <div class="topbar">
     <div style="font-family:'Duplet',sans-serif;font-size:22px;font-weight:700;white-space:nowrap;flex-shrink:0;letter-spacing:-.2px">
       <span style="color:var(--text)">CLEAN</span><span style="color:var(--accent)">Theory</span><span style="color:var(--muted);font-size:13px;font-weight:400;margin-left:14px;font-family:'IBM Plex Mono',monospace;letter-spacing:0">Prospect Intelligence</span>
-      <span style="color:var(--muted);font-size:10px;font-weight:400;margin-left:10px;font-family:'IBM Plex Mono',monospace;background:var(--surface2);padding:2px 7px;border-radius:4px;vertical-align:middle">v1.25 &nbsp;·&nbsp; Apr 15 2026</span>
+      <span style="color:var(--muted);font-size:10px;font-weight:400;margin-left:10px;font-family:'IBM Plex Mono',monospace;background:var(--surface2);padding:2px 7px;border-radius:4px;vertical-align:middle">v1.26 &nbsp;·&nbsp; Apr 15 2026</span>
     </div>
     <div class="topbar-mid">
       <div class="tab-nav">
@@ -790,6 +790,11 @@ function load() {
     if(!p.originalEntityType) p.originalEntityType = p.entityType
     if(!p.classConfidence) p.classConfidence = calcConfidence(p)
     if(!p.priorityScore) p.priorityScore = calcScore(p)
+    // Fix records imported from state licensing trackers that have a license number
+    // but got 'unknown' status because there was no status column in the file
+    if(p.licenseStatus === 'unknown' && p.licenseNumber && p.licenseNumber.trim()) {
+      p.licenseStatus = 'active'
+    }
   }
 }
 
@@ -1057,6 +1062,7 @@ async function syncNow() {
     dbg(`Merge complete. Added ${added} new records.`)
 
     // Backfill any fields missing from synced records — always recalc distance
+    let backfillChanged = false
     for(const p of prospects) {
       const d = calcDist(p)
       p.distanceMiles = d?.miles??null
@@ -1064,7 +1070,13 @@ async function syncNow() {
       if(!p.originalEntityType) p.originalEntityType = p.entityType
       if(!p.classConfidence) p.classConfidence = calcConfidence(p)
       if(!p.priorityScore) p.priorityScore = calcScore(p)
+      if(p.licenseStatus === 'unknown' && p.licenseNumber && p.licenseNumber.trim()) {
+        p.licenseStatus = 'active'
+        backfillChanged = true
+      }
     }
+    // If we corrected any licenseStatus values, push back to Gist so it sticks
+    if(backfillChanged) scheduleGistSave()
 
     const logKey = e => (e.filename||'')+(e.date||'')+(e.time||'')
     const localLogKeys = new Set()
@@ -1623,7 +1635,8 @@ function doXL(e) {
             website:       get(row,'company display domain','website','company website','domain','url')||'',
             linkedIn:      get(row,'contact linkedin url','linkedin url','linkedin','contact linkedin')||'',
             companyLinkedIn: get(row,'company linkedin')||'',
-            licenseStatus: ntStatus(get(row,'status','license status','lic status','active?','establishment type')||'active'),
+            licenseStatus: ntStatus(get(row,'status','license status','lic status','active?')||
+                           (get(row,'license number','license #','lic #') ? 'active' : 'unknown')),
             licenseNumber: get(row,'license number','license #','license','lic #','license_number')||'',
             source:        'excel_' + sheetName.toLowerCase(),
             notes:         get(row,'notes','comments','memo','priority/expedited status')||''
