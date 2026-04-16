@@ -179,7 +179,7 @@ textarea:focus{border-color:var(--accent)}
   <div class="topbar">
     <div style="font-family:'Duplet',sans-serif;font-size:22px;font-weight:700;white-space:nowrap;flex-shrink:0;letter-spacing:-.2px">
       <span style="color:var(--text)">CLEAN</span><span style="color:var(--accent)">Theory</span><span style="color:var(--muted);font-size:13px;font-weight:400;margin-left:14px;font-family:'IBM Plex Mono',monospace;letter-spacing:0">Prospect Intelligence</span>
-      <span style="color:var(--muted);font-size:10px;font-weight:400;margin-left:10px;font-family:'IBM Plex Mono',monospace;background:var(--surface2);padding:2px 7px;border-radius:4px;vertical-align:middle">v1.26 &nbsp;·&nbsp; Apr 15 2026</span>
+      <span style="color:var(--muted);font-size:10px;font-weight:400;margin-left:10px;font-family:'IBM Plex Mono',monospace;background:var(--surface2);padding:2px 7px;border-radius:4px;vertical-align:middle">v1.27 &nbsp;·&nbsp; Apr 15 2026</span>
     </div>
     <div class="topbar-mid">
       <div class="tab-nav">
@@ -795,6 +795,12 @@ function load() {
     if(p.licenseStatus === 'unknown' && p.licenseNumber && p.licenseNumber.trim()) {
       p.licenseStatus = 'active'
     }
+    // Apply title-based type override for existing records
+    const titleOverride = titleType(p.contactTitle)
+    if(titleOverride && !p.challenged && titleOverride !== p.entityType) {
+      p.entityType = titleOverride
+      p.priorityScore = calcScore(p)
+    }
   }
 }
 
@@ -1074,6 +1080,13 @@ async function syncNow() {
         p.licenseStatus = 'active'
         backfillChanged = true
       }
+      // Apply title-based type override
+      const titleOverride = titleType(p.contactTitle)
+      if(titleOverride && !p.challenged && titleOverride !== p.entityType) {
+        p.entityType = titleOverride
+        p.priorityScore = calcScore(p)
+        backfillChanged = true
+      }
     }
     // If we corrected any licenseStatus values, push back to Gist so it sticks
     if(backfillChanged) scheduleGistSave()
@@ -1139,6 +1152,16 @@ function ntType(t) {
   if(/\btest|\blab\b|analy|certif|independent testing/.test(t)) return 'testing_lab'
   if(/retail|dispens|store|shop/.test(t)) return 'dispensary'
   return 'cultivator'
+}
+
+// Override entity type based on contact title — title is a stronger signal than company name
+// e.g. "Director of Cultivation" at a dispensary → that person is in cultivator role
+function titleType(title) {
+  const t = (title||'').toLowerCase()
+  if(/\bcultivat|\bgrow(er|ing)?\b|\bhorticultur|\bhead of grow|\bcanopy\b/.test(t)) return 'cultivator'
+  if(/\bextract|\bextractor|\bmanufactur|\bproduction manager|\bhead of production|\binfusion|\bformulat/.test(t)) return 'processor'
+  if(/\blab director|\blab manager|\blaboratory|\banalytical|\bquality control|\bqc manager|\bqc director|\bchemist\b|\btesting director/.test(t)) return 'testing_lab'
+  return null  // no override — use company-level classification
 }
 function ntStatus(s) {
   s = (s||'').toLowerCase()
@@ -1628,7 +1651,7 @@ function doXL(e) {
             businessName:  get(row,'name','company name','company','business name','dba','licensee','establishment')||'',
             contactName,
             contactTitle:  title,
-            entityType:    ntType(licTypeCol + ' ' + get(row,'company name','company','business name','name')),
+            entityType:    titleType(title) || ntType(licTypeCol + ' ' + get(row,'company name','company','business name','name')),
             state, city,   address: addr,
             phone,
             email:         get(row,'contact work email','work email','email','contact email')||'',
@@ -1951,22 +1974,42 @@ async function batchReclassify() {
     if(!remaining.length) break
 
     batchNum++
-    const companyList = [...new Set(remaining.map(p => p.businessName))].slice(0, BATCH_SIZE)
+    // Build company+title list for this batch
+    const batchRecords = remaining.slice(0, BATCH_SIZE * 3) // take more records to get BATCH_SIZE unique companies
+    const seen = new Set()
+    const companyEntries = []
+    for(const p of batchRecords) {
+      if(!seen.has(p.businessName)) {
+        seen.add(p.businessName)
+        // Collect unique titles at this company
+        const titles = [...new Set(
+          prospects.filter(x => x.businessName === p.businessName && x.contactTitle)
+                   .map(x => x.contactTitle)
+        )].slice(0, 3).join(', ')
+        companyEntries.push({ name: p.businessName, titles })
+        if(companyEntries.length >= BATCH_SIZE) break
+      }
+    }
     const totalRemaining = [...new Set(allLowConf().map(p => p.businessName))].length
 
-    if(statusEl) statusEl.textContent = `Batch ${batchNum} — analyzing ${companyList.length} companies… (${totalRemaining} remaining)`
+    if(statusEl) statusEl.textContent = `Batch ${batchNum} — analyzing ${companyEntries.length} companies… (${totalRemaining} remaining)`
 
-    const prompt = `You are classifying cannabis industry companies. For each company name below, determine what type of cannabis business it is based on the company name alone.
+    const prompt = `You are classifying cannabis industry companies. For each company, determine what type of cannabis business it is.
+
+IMPORTANT: If contact titles are provided, they are strong signals — a "Director of Cultivation" at a dispensary means that person works in cultivation. Let the title override the company name when it contains clear role signals:
+- Titles with: cultivat, grow, grower, horticultur → type: cultivator
+- Titles with: extract, manufactur, production manager, infusion → type: processor  
+- Titles with: lab director, lab manager, laboratory, analytical, QC → type: testing_lab
 
 Companies to classify:
-${companyList.map((n,i) => `${i+1}. ${n}`).join('\n')}
+${companyEntries.map((e,i) => `${i+1}. ${e.name}${e.titles ? ` [staff titles: ${e.titles}]` : ''}`).join('\n')}
 
 Return ONLY a JSON array, no other text:
 [{"name":"Company Name Here","type":"cultivator","confidence":"high","reason":"brief reason"}]
 
 type must be EXACTLY one of: "cultivator", "processor", "testing_lab", "dispensary", "other"
 confidence must be EXACTLY one of: "high", "medium", "low"
-If you cannot determine the type from the name alone, use "other" with confidence "low".`
+If you cannot determine the type, use "other" with confidence "low".`
 
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -2003,10 +2046,10 @@ If you cannot determine the type from the name alone, use "other" with confidenc
       renderAll()
 
       // If this batch made no progress (all company names unrecognized), break to avoid infinite loop
-      if(batchUpdated === 0 && companyList.length > 0) {
-        // Mark all these companies as 'other' so they don't loop forever
-        for(const name of companyList) {
-          for(const p of prospects.filter(x => x.businessName === name && (x.classConfidence||'low') === 'low')) {
+      if(batchUpdated === 0 && companyEntries.length > 0) {
+        // Mark all these companies as 'medium' so they don't loop forever
+        for(const entry of companyEntries) {
+          for(const p of prospects.filter(x => x.businessName === entry.name && (x.classConfidence||'low') === 'low')) {
             p.classConfidence = 'medium'
             p.challengeNote = 'AI: unable to classify from name alone'
           }
